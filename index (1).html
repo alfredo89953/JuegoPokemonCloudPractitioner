@@ -358,6 +358,25 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
   </div>
   <button class="btn-main" style="background-color:var(--poke-red);font-size:.55rem;" onclick="clearLocalStorageStats()">🗑️ Resetear Datos Pokédex</button>
 </div>
+<!-- Contenedor de Navegación -->
+<div style="display: flex; gap: 16px; margin: 20px 0; flex-wrap: wrap;">
+  
+  <!-- Botón 1: Guía Pokémon -->
+  <a href="guia-pokemon.html" target="_blank" rel="noopener noreferrer" 
+     style="background-color: #1b5f19 !important; color: #0f172a !important; text-decoration: none !important; padding: 8px 16px; font-size: 12px; font-weight: bold; font-family: sans-serif; border-radius: 6px; border: 1px solid #2c2e30; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+    ℹ️ Guía de Obtención Pokémon 
+    <span style="color: #64748b; font-size: 10px; text-decoration: none !important;">↗</span>
+  </a>
+
+  <!-- Botón 2: Guía Medallas -->
+  <a href="guia-medallas.html" target="_blank" rel="noopener noreferrer" 
+     style="background-color: #1b5f19 !important; color: #0f172a !important; text-decoration: none !important; padding: 8px 16px; font-size: 12px; font-weight: bold; font-family: sans-serif; border-radius: 6px; border: 1px solid #2c2e30; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+    ℹ️ Guía de Obtención Medallas 
+    <span style="color: #64748b; font-size: 10px; text-decoration: none !important;">↗</span>
+  </a>
+
+</div>
+
 
 <div id="pokedex-screen" class="hidden">
   <button class="back-btn" onclick="handleScreenTransition(closePokedexScreen)">◀ PUEBLO PALETA</button>
