@@ -286,10 +286,10 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
     <label style="display:block;margin-bottom:8px;font-family:'Press Start 2P',monospace;font-size:.55rem;color:var(--poke-yellow);">🎮 NOMBRE DE ENTRENADOR:</label>
     <input type="text" id="username-input" style="width:100%;background:var(--poke-cream);color:var(--poke-text);border:4px solid #1C1C1C;border-radius:4px;padding:8px;font-family:'VT323',monospace;font-size:1.3rem;margin-bottom:12px;" placeholder="Ash_Ketchum" value="Alumno_Anonimo">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <button class="btn-main" style="background-color:var(--purple);margin-bottom:0;padding:8px;font-size:.55rem;" onclick="exportMyNotes()">📤 Compartir Pokédex</button>
-      <button class="btn-main" style="background-color:#546E7A;margin-bottom:0;padding:8px;font-size:.55rem;" onclick="document.getElementById('import-folder-input').click()">📥 Recibir Pokédex</button>
-      <input type="file" id="import-folder-input" webkitdirectory directory multiple style="display:none;" onchange="importNotesFromFolder(event)">
-    </div>
+    <button class="btn-main" style="background-color:var(--purple);margin-bottom:0;padding:8px;font-size:.55rem;" onclick="exportMyNotes()">📤 Compartir Pokédex</button>
+    <button class="btn-main" style="background-color:#546E7A;margin-bottom:0;padding:8px;font-size:.55rem;" onclick="document.getElementById('import-folder-input').click()">📥 Recibir Pokédex</button>
+    <input type="file" id="import-folder-input" accept=".json" style="display:none;" onchange="importNotesFromFolder(event)">
+</div>
   </div>
   <div class="medals-section">
     <span class="medals-title">🏅 MEDALLAS DE GIMNASIO CLOUD</span>

@@ -1232,3 +1232,74 @@ async function saveProgressToCloud() {
         console.error("Error al sincronizar con AWS:", error);
     }
 }
+
+// ==========================================
+// COMPARTIR Y RECIBIR POKÉDEX (JSON)
+// ==========================================
+
+function exportMyNotes() {
+    const pokedexData = {};
+    let hasData = false;
+
+    // Recolectar solo los datos relevantes del simulador
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('aws_sim_') || key.startsWith('poke_') || key.startsWith('pokedex_')) {
+            pokedexData[key] = localStorage.getItem(key);
+            hasData = true;
+        }
+    }
+
+    if (!hasData) {
+        alert("Tu Pokédex está vacía. ¡Juega un poco antes de compartirla!");
+        return;
+    }
+
+    // Generar archivo JSON y descargarlo silenciosamente
+    const jsonString = JSON.stringify(pokedexData);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = "pokedex_backup.json";
+    
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(url);
+}
+
+function importNotesFromFolder(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const importedData = JSON.parse(e.target.result);
+            
+            // Inyectar los datos en el localStorage
+            for (const key in importedData) {
+                if (key.startsWith('aws_sim_') || key.startsWith('poke_') || key.startsWith('pokedex_')) {
+                    localStorage.setItem(key, importedData[key]);
+                }
+            }
+
+            alert("¡Pokédex recibida y sincronizada con éxito!");
+            
+            // Recargar la página para aplicar los cambios en la interfaz
+            window.location.reload();
+            
+        } catch (error) {
+            console.error("Error al leer el archivo:", error);
+            alert("Error: El archivo seleccionado no es válido.");
+        }
+        
+        // Limpiar el input para permitir volver a cargar el mismo archivo si es necesario
+        event.target.value = '';
+    };
+
+    reader.readAsText(file);
+}
