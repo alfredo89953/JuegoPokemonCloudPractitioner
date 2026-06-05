@@ -301,12 +301,25 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
 
 <div id="game-screen" class="hidden">
   <button class="back-btn" onclick="confirmQuitGame()">◀ PUEBLO PALETA</button>
+
+  <!-- ── MAPA INLINE (tablet/mobile, solo Liga Pokémon) ── -->
+  <button id="exam-map-toggle-btn" style="display:none;" onclick="ExamMap.toggleInline()">🗺️ MAPA DE RUTA — VER PREGUNTAS ▼</button>
+  <div id="exam-map-inline" class="hidden">
+    <div class="exam-map-title">🏆 MAPA DE LA LIGA</div>
+    <div class="exam-map-summary" id="exam-map-summary-inline">
+      <span><span class="map-count-val" id="map-answered-count-il">0</span>RESP.</span>
+      <span><span class="map-count-val" id="map-remaining-count-il">0</span>REST.</span>
+      <span><span class="map-count-val" id="map-current-num-il">0</span>ACTUAL</span>
+    </div>
+    <div class="exam-map-grid exam-map-inline-grid" id="exam-map-grid-inline"></div>
+  </div>
+
   <div class="hud">
     <div id="hud-mode-text">BATALLA: <span id="hud-progress">0/0</span></div>
     <div><span id="hud-lives-label">HP:</span> <span id="hud-lives">❤️</span></div>
     <div>TIEMPO: <span id="hud-time">0s</span></div>
   </div>
- <div id="timer-bar-container" class="timer-bar-container"><div id="timer-bar" class="timer-bar"></div></div>
+  <div id="timer-bar-container" class="timer-bar-container"><div id="timer-bar" class="timer-bar"></div></div>
   <div class="xp-bar-wrap">
     <div class="xp-bar-label"><span>⭐ XP</span><span id="xp-label">0 / 100 XP — Lv.1</span></div>
     <div class="xp-bar-track"><div class="xp-bar-fill" id="xp-bar-fill"></div></div>
@@ -360,7 +373,6 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
 </div>
 <!-- Contenedor de Navegación -->
 <div style="display: flex; gap: 16px; margin: 20px 0; flex-wrap: wrap;">
-  
   <!-- Botón 1: Guía Pokémon -->
   <a href="guia-pokemon.html" target="_blank" rel="noopener noreferrer" 
      style="background-color: #1b5f19 !important; color: #0f172a !important; text-decoration: none !important; padding: 8px 16px; font-size: 12px; font-weight: bold; font-family: sans-serif; border-radius: 6px; border: 1px solid #2c2e30; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
@@ -396,6 +408,17 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
   <button class="btn-main" style="background:#37474F;" onclick="handleScreenTransition(showStatsPanel)">📋 Ver Pokédex de Batallas</button>
 </div>
 
-</div><script src="app.js"></script>
+<!-- ── MAPA FLOTANTE LATERAL — FUERA del .container para position:fixed correcto ── -->
+<div id="exam-question-map" style="display:none;">
+  <div class="exam-map-title">🏆 LIGA POKÉMON<br>MAPA DE RUTA</div>
+  <div class="exam-map-summary" id="exam-map-summary-side">
+    <span><span class="map-count-val" id="map-answered-count">0</span>RESP.</span>
+    <span><span class="map-count-val" id="map-remaining-count">0</span>REST.</span>
+    <span><span class="map-count-val" id="map-current-num">1</span>ACTUAL</span>
+  </div>
+  <div class="exam-map-grid" id="exam-map-grid-side"></div>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>

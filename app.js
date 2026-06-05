@@ -548,6 +548,7 @@ function confirmQuitGame() {
         handleScreenTransition(() => {
             clearInterval(timerInterval);
             SimCertState.clearSession();
+            ExamMap.setVisible(false);
             document.getElementById('game-screen').classList.add('hidden');
             document.getElementById('wild-overlay').classList.add('hidden');
             document.getElementById('setup-screen').classList.remove('hidden');
@@ -612,6 +613,109 @@ function updateErrorQuizButtonStatus() {
 }
 
 // ==================================================================
+// 10B. MÓDULO MAPA DE PREGUNTAS — LIGA POKÉMON
+// ==================================================================
+const ExamMap = {
+    /** Renderiza ambas versiones (side panel + inline) del mapa */
+    render() {
+        if (!isExamMode) return;
+        const total = activeQuestionBank.length;
+
+        // Contadores resumen
+        const answeredCount = Object.keys(examUserAnswers).filter(k => examUserAnswers[k] && examUserAnswers[k].length > 0).length;
+        const remaining = total - answeredCount;
+        const currentNum = currentQuestionIndex + 1;
+
+        // Actualizar contadores en ambas versiones
+        ['', '-il'].forEach(suffix => {
+            const ac = document.getElementById(`map-answered-count${suffix}`);
+            const rc = document.getElementById(`map-remaining-count${suffix}`);
+            const cn = document.getElementById(`map-current-num${suffix}`);
+            if (ac) ac.textContent = answeredCount;
+            if (rc) rc.textContent = remaining;
+            if (cn) cn.textContent = currentNum;
+        });
+
+        // Generar celdas para ambos grids
+        ['exam-map-grid-side', 'exam-map-grid-inline'].forEach(gridId => {
+            const grid = document.getElementById(gridId);
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            for (let i = 0; i < total; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'map-cell';
+                cell.title = `Pregunta ${i + 1}`;
+                cell.textContent = i + 1;
+                cell.setAttribute('aria-label', `Ir a pregunta ${i + 1}`);
+
+                const hasAnswer = examUserAnswers[i] && examUserAnswers[i].length > 0;
+
+                if (i === currentQuestionIndex) {
+                    cell.classList.add('map-current');
+                } else if (hasAnswer) {
+                    cell.classList.add('map-answered');
+                } else {
+                    cell.classList.add('map-empty');
+                }
+
+                // Navegar directo a la pregunta al hacer click
+                cell.addEventListener('click', () => {
+                    if (i !== currentQuestionIndex) {
+                        currentQuestionIndex = i;
+                        showQuestion();
+                    }
+                });
+
+                grid.appendChild(cell);
+            }
+        });
+    },
+
+    /** Muestra u oculta el mapa según el modo de juego activo */
+    setVisible(visible) {
+        const sidePanel = document.getElementById('exam-question-map');
+        const toggleBtn = document.getElementById('exam-map-toggle-btn');
+        const inlineMap = document.getElementById('exam-map-inline');
+
+        if (!sidePanel) return;
+
+        const isDesktop = window.innerWidth > 1100;
+
+        if (visible) {
+            if (isDesktop) {
+                sidePanel.style.display = 'block';
+                if (toggleBtn) toggleBtn.style.display = 'none';
+                if (inlineMap) inlineMap.classList.add('hidden');
+            } else {
+                sidePanel.style.display = 'none';
+                if (toggleBtn) toggleBtn.style.display = 'block';
+                // inlineMap comienza oculto hasta que el usuario lo abre
+            }
+        } else {
+            sidePanel.style.display = 'none';
+            if (toggleBtn) toggleBtn.style.display = 'none';
+            if (inlineMap) inlineMap.classList.add('hidden');
+        }
+    },
+
+    /** Toggle del mapa inline en mobile/tablet */
+    toggleInline() {
+        const inlineMap = document.getElementById('exam-map-inline');
+        const btn = document.getElementById('exam-map-toggle-btn');
+        if (!inlineMap) return;
+
+        const isHidden = inlineMap.classList.contains('hidden');
+        inlineMap.classList.toggle('hidden', !isHidden);
+        if (btn) btn.textContent = isHidden
+            ? '🗺️ MAPA DE RUTA — CERRAR ▲'
+            : '🗺️ MAPA DE RUTA — VER PREGUNTAS ▼';
+
+        if (isHidden) ExamMap.render(); // Renderizar al abrir
+    }
+};
+
+// ==================================================================
 // 11. MOTOR PRINCIPAL DE JUEGO Y FLUJO DE LOGICA
 // ==================================================================
 function startGame(mode) {
@@ -629,6 +733,7 @@ function startGame(mode) {
         activeQuestionBank.forEach(q => examQuestionsOrder.push(shuffleArray([...q.options])));
         document.getElementById('hud-lives-label').innerText = 'MODO:';
         document.getElementById('hud-lives').innerText = '📝 LIGA';
+        ExamMap.setVisible(true);
     } else if (isErrorMode) {
         activeQuestionBank = shuffleArray([...getErrorQuestions()]).slice(0, 15);
         lives = 5; document.getElementById('hud-lives-label').innerText = 'HP:'; updateLivesUI();
@@ -648,6 +753,7 @@ function startGame(mode) {
         lives = selectedConfig.lives; totalTimeAllocated = selectedConfig.time;
         document.getElementById('hud-lives-label').innerText = 'HP:'; updateLivesUI();
     }
+    if (!isExamMode) ExamMap.setVisible(false);
 
     currentQuestionIndex = 0; score = 0;
     document.getElementById('setup-screen').classList.add('hidden');
@@ -738,7 +844,9 @@ function showQuestion() {
         else window._wildCountdown--;
     }
 
-    updateXpBar(); SimCertState.saveState();
+    updateXpBar();
+    if (isExamMode) ExamMap.render();
+    SimCertState.saveState();
 }
 
 // ==================================================================
@@ -884,10 +992,11 @@ function prevQuestion() { if (isExamMode && currentQuestionIndex > 0) { currentQ
 
 function endGame() {
     clearInterval(timerInterval);
+    ExamMap.setVisible(false);
     document.getElementById('game-screen').classList.add('hidden');
     document.getElementById('wild-overlay').classList.add('hidden');
     document.getElementById('results-screen').classList.remove('hidden');
-    document.querySelector('.timer-bar-container').style.display = '';
+    document.querySelector('.timer-bar-container').style.display = '';  
 
     let totalQ = activeQuestionBank.length;
     if (isExamMode) {
