@@ -1012,6 +1012,33 @@ function endGame() {
     }
 
     const pct = totalQ > 0 ? Math.round((score / totalQ) * 100) : 0;
+
+    // Resolver apuesta activa si existe (solo en Modo Batalla)
+if (!isExamMode && !isPracticeMode && !isErrorMode) {
+    // BetSystem vive en batalla.js, pero la apuesta se lee/escribe en localStorage
+    // Resolvemos manualmente aquí para no depender del script externo
+    const BET_KEY = 'simcert_active_bet';
+    const activeBet = JSON.parse(localStorage.getItem(BET_KEY) || 'null');
+    if (activeBet && activeBet.username === (localStorage.getItem('aws_sim_username') || 'Alumno_Anonimo')) {
+        const won = pct >= 70;
+        if (won) {
+            const xpBonus = { easy: 20, medium: 50, hard: 100 }[activeBet.difficulty] || 20;
+            awardXP(xpBonus);
+            showToast(`🏆 ¡APUESTA GANADA!\n${activeBet.pokemon.name.toUpperCase()} conservado.\n+${xpBonus} XP de recompensa`, 4500);
+        } else {
+            // Eliminar el Pokémon apostado de la Pokédex
+            const u = localStorage.getItem('aws_sim_username') || 'Alumno_Anonimo';
+            const all = JSON.parse(localStorage.getItem('poke_caught') || '{}');
+            if (all[u]) {
+                all[u] = all[u].filter(p => p.id !== activeBet.pokemon.id);
+                localStorage.setItem('poke_caught', JSON.stringify(all));
+            }
+            awardXP(-20);
+            showToast(`💀 ¡APUESTA PERDIDA!\n${activeBet.pokemon.name.toUpperCase()} huyó para siempre...`, 4500);
+        }
+        localStorage.removeItem(BET_KEY);
+    }
+}
     document.getElementById('results-score').innerText = `${score} / ${totalQ}`;
     document.getElementById('results-percentage').innerText = `${pct}% DE ALCANCE`;
 
@@ -1295,6 +1322,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Intentar recuperar sesión persistida previa por el módulo de estado
     const wasRestored = SimCertState.loadState();
+
+    // Detectar si venimos del Coliseo de Apuestas (parámetro ?bet=1)
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('bet') === '1' && urlParams.get('mode') === 'trivia') {
+    const betDiff = urlParams.get('difficulty') || 'medium';
+    // Limpiar la URL sin recargar la página
+    window.history.replaceState({}, '', window.location.pathname);
+    // Seleccionar dificultad y arrancar la batalla directamente
+    setTimeout(() => {
+        if (masterQuestionBank.length > 0) {
+            selectDifficulty(betDiff, document.querySelector(`.btn-diff[onclick*="${betDiff}"]`) || document.querySelector('.btn-diff'));
+            handleScreenTransition(() => startGame('trivia'));
+        }
+    }, 400);
+}
     if (wasRestored && activeQuestionBank && activeQuestionBank.length > 0) {
         setTimeout(() => {
             if (confirm('⚔️ Detectamos una simulación interrumpida de forma imprevista.\n¿Deseas restaurar la partida para no perder tus vidas actuales?')) {

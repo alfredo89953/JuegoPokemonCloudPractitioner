@@ -278,7 +278,7 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
   <div class="difficulty-container">
     <button class="btn-diff selected" onclick="selectDifficulty('easy',this)">🌱 BROCK<br><small>5 Vidas · 5 Preg.</small></button> <button class="btn-diff" onclick="selectDifficulty('medium',this)">⚡ MISTY<br><small>3 Vidas · 10 Preg.</small></button> <button class="btn-diff" onclick="selectDifficulty('hard',this)">🔥 GARY OAK<br><small>1 Vida · 15 Preg.</small></button>
   </div>
-  <button id="start-btn" class="btn-main" disabled onclick="handleScreenTransition(()=>startGame('trivia'))">▶ MODO BATALLA</button>
+<button id="start-btn" class="btn-main" disabled onclick="window.location.href='batalla.html'">▶ MODO BATALLA</button>
   <button id="error-quiz-btn" class="btn-main hidden" style="background-color:var(--poke-red);" disabled onclick="handleScreenTransition(()=>startGame('errors'))">💀 REVANCHA — Pokémon Debilitados (0 disponibles)</button>
   <button id="exam-start-btn" class="btn-main btn-exam" disabled onclick="handleScreenTransition(()=>startGame('exam'))">🏆 LIGA POKÉMON — 65 Preguntas / 90 min</button>
   <button id="practice-start-btn" class="btn-main btn-practice" disabled onclick="handleScreenTransition(()=>startGame('practice'))">🌿 MODO PRÁCTICA — Sin tiempo · Captura Pokémon</button>

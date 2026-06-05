@@ -4,7 +4,7 @@ const CACHE_NAME = 'simcert-cache-v2'; // Incrementa este número al actualizar 
 // Archivos estáticos indispensables para arrancar offline (App Shell)
 const STATIC_ASSETS = [
   '/',
-  '/index.html',
+  '/index (1).html',
   // Añade aquí tus rutas locales exactas si tienes archivos CSS/JS separados, por ejemplo:
   // '/css/styles.css',
   // '/js/app.js'

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coliseo de Apuestas — Cloud Trainer Adventure</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+    <style>
+    /* ══════════════════════════════════════════════
+       VARIABLES — idénticas al proyecto principal
+    ══════════════════════════════════════════════ */
+    :root {
+        --poke-red:#CC0000; --poke-dark-red:#990000; --poke-cream:#F5F0D8;
+        --poke-navy:#1A237E; --poke-sky:#3949AB; --poke-yellow:#FFD600;
+        --poke-green:#2E7D32; --poke-gray:#37474F; --poke-text:#1C1C1C;
+        --poke-white:#FAFAFA; --text-muted:#B0BEC5; --purple:#6A1B9A;
+        --coliseo-gold:#FFD600; --coliseo-dark:#0D1117;
+    }
+
+    /* ══ RESET & BASE ══ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        background-color: #0D1117;
+        background-image:
+            repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,214,0,.04) 2px, rgba(255,214,0,.04) 4px),
+            repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(255,255,255,.02) 4px, rgba(255,255,255,.02) 8px);
+        color: var(--poke-white);
+        font-family: 'VT323', monospace;
+        font-size: 22px;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 15px;
+        image-rendering: pixelated;
+    }
+
+    /* ══ CONTENEDOR PRINCIPAL ══ */
+    .coliseo-container {
+        width: 100%;
+        max-width: 860px;
+        background: var(--poke-navy);
+        border: 4px solid #1C1C1C;
+        box-shadow: 6px 6px 0 #1C1C1C, 0 0 40px rgba(255,214,0,.12);
+        border-radius: 4px;
+        padding: 28px;
+        position: relative;
+    }
+
+    /* ══ DECORACIÓN SUPERIOR — COLISEO ══ */
+    .coliseo-header {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 4px solid var(--poke-yellow);
+        position: relative;
+    }
+    .coliseo-header::before,
+    .coliseo-header::after {
+        content: '⚔️';
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.8rem;
+    }
+    .coliseo-header::before { left: 0; }
+    .coliseo-header::after  { right: 0; }
+
+    .coliseo-title {
+        font-family: 'Press Start 2P', monospace;
+        font-size: 1.1rem;
+        color: var(--poke-yellow);
+        text-shadow: 3px 3px 0 #000, 0 0 20px rgba(255,214,0,.4);
+        line-height: 1.5;
+        margin-bottom: 6px;
+    }
+    .coliseo-subtitle {
+        font-size: 1.3rem;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+    }
+
+    /* ══ BANNER APUESTA PENDIENTE ══ */
+    #bet-existing-banner {
+        background: rgba(204,0,0,.2);
+        border: 3px solid var(--poke-red);
+        border-radius: 4px;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: .5rem;
+        color: var(--poke-red);
+        text-align: center;
+    }
+    #bet-existing-banner button {
+        background: var(--poke-red);
+        border: 2px solid #1C1C1C;
+        border-radius: 3px;
+        color: white;
+        font-family: 'Press Start 2P', monospace;
+        font-size: .4rem;
+        padding: 5px 10px;
+        cursor: pointer;
+        margin-top: 8px;
+    }
+
+    /* ══ INFO DEL ENTRENADOR ══ */
+    .trainer-info-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(0,0,0,.4);
+        border: 3px solid #1C1C1C;
+        border-radius: 4px;
+        padding: 10px 14px;
+        margin-bottom: 20px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: .5rem;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .trainer-info-bar .trainer-label { color: var(--text-muted); }
+    .trainer-info-bar .trainer-val   { color: var(--poke-yellow); }
+
+    /* ══ SECCIÓN — TÍTULOS DE PASO ══ */
+    .section-title {
+        font-family: 'Press Start 2P', monospace;
+        font-size: .6rem;
+        color: var(--poke-yellow);
+        margin-bottom: 12px;
+        padding-left: 10px;
+        border-left: 4px solid var(--poke-yellow);
+        line-height: 1.6;
+    }
+
+    /* ══ SELECTOR DE DIFICULTAD ══ */
+    .difficulty-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+    .bet-diff-btn {
+        background: #37474F;
+        border: 4px solid #1C1C1C;
+        box-shadow: 2px 2px 0 #1C1C1C;
+        border-radius: 4px;
+        color: white;
+        padding: 12px 6px;
+        cursor: pointer;
+        font-family: 'VT323', monospace;
+        font-size: 1.2rem;
+        text-align: center;
+        transition: all .15s;
+        line-height: 1.3;
+    }
+    .bet-diff-btn small { display: block; font-size: .85rem; color: #CFD8DC; margin-top: 4px; }
+    .bet-diff-btn.selected {
+        border-color: var(--poke-yellow);
+        background: var(--poke-sky);
+        box-shadow: 0 0 10px rgba(255,214,0,.5);
+    }
+    .bet-diff-btn:hover:not(.selected) { background: #455A64; }
+
+    /* ══ ADVERTENCIA SIN POKÉMON ══ */
+    #bet-empty-warning {
+        background: rgba(255,214,0,.08);
+        border: 4px dashed var(--poke-yellow);
+        border-radius: 4px;
+        padding: 28px 20px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    #bet-empty-warning .warn-icon  { font-size: 3rem; display: block; margin-bottom: 12px; }
+    #bet-empty-warning .warn-title {
+        font-family: 'Press Start 2P', monospace;
+        font-size: .65rem;
+        color: var(--poke-yellow);
+        margin-bottom: 10px;
+        display: block;
+    }
+    #bet-empty-warning p  { color: var(--text-muted); font-size: 1.2rem; line-height: 1.4; margin-bottom: 16px; }
+    #bet-empty-warning a  {
+        display: inline-block;
+        background: #00695C;
+        border: 3px solid #1C1C1C;
+        border-radius: 4px;
+        color: white;
+        font-family: 'Press Start 2P', monospace;
+        font-size: .45rem;
+        padding: 10px 16px;
+        text-decoration: none;
+        transition: background .15s;
+    }
+    #bet-empty-warning a:hover { background: #00897B; }
+
+    /* ══ GRID DE POKÉMON ══ */
+    #bet-pokemon-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 4px;
+        /* Scrollbar retro */
+        scrollbar-width: thin;
+        scrollbar-color: var(--poke-yellow) #1C1C1C;
+    }
+    #bet-pokemon-grid::-webkit-scrollbar       { width: 6px; }
+    #bet-pokemon-grid::-webkit-scrollbar-track { background: #1C1C1C; }
+    #bet-pokemon-grid::-webkit-scrollbar-thumb { background: var(--poke-yellow); border-radius: 2px; }
+
+    .bet-pokemon-card {
+        background: rgba(0,0,0,.45);
+        border: 3px solid #1C1C1C;
+        border-radius: 4px;
+        padding: 10px 8px;
+        text-align: center;
+        width: 88px;
+        cursor: pointer;
+        transition: transform .1s, border-color .1s, box-shadow .1s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+    }
+    .bet-pokemon-card:hover {
+        transform: scale(1.06);
+        border-color: var(--poke-yellow);
+    }
+    .bet-pokemon-card.selected {
+        border-color: var(--poke-yellow);
+        background: rgba(57,73,171,.6);
+        box-shadow: 0 0 10px rgba(255,214,0,.5);
+        transform: scale(1.08);
+        animation: cardPulse .8s ease infinite;
+    }
+    @keyframes cardPulse {
+        0%,100% { box-shadow: 0 0 6px var(--poke-yellow); }
+        50%      { box-shadow: 0 0 14px var(--poke-yellow); }
+    }
+
+    .bet-poke-sprite {
+        width: 60px;
+        height: 60px;
+        image-rendering: pixelated;
+        object-fit: contain;
+    }
+    .bet-poke-num  { font-family: 'Press Start 2P', monospace; font-size: .35rem; color: var(--text-muted); }
+    .bet-poke-name { font-family: 'Press Start 2P', monospace; font-size: .38rem; color: var(--poke-yellow); line-height: 1.3; }
+    .bet-poke-types{ font-size: .9rem; color: #90A4AE; }
+
+    /* ══ PANEL DE PREVIEW ══ */
+    #bet-preview-panel {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        background: rgba(0,0,0,.4);
+        border: 3px solid var(--poke-yellow);
+        border-radius: 4px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        animation: fadeInUp .25s ease forwards;
+    }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .preview-sprite {
+        width: 90px;
+        height: 90px;
+        image-rendering: pixelated;
+        object-fit: contain;
+        animation: pokeBounce 1s ease infinite;
+    }
+    @keyframes pokeBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+    .preview-info { flex: 1; }
+    .preview-label {
+        font-family: 'Press Start 2P', monospace;
+        font-size: .45rem;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+        display: block;
+    }
+    #bet-preview-name {
+        font-family: 'Press Start 2P', monospace;
+        font-size: .75rem;
+        color: var(--poke-yellow);
+        display: block;
+        margin-bottom: 6px;
+        text-shadow: 2px 2px 0 #000;
+    }
+    #bet-preview-type {
+        font-size: 1.1rem;
+        color: #CFD8DC;
+        display: block;
+    }
+    .preview-risk {
+        font-family: 'Press Start 2P', monospace;
+        font-size: .42rem;
+        color: var(--poke-red);
+        margin-top: 8px;
+        display: block;
+        line-height: 1.5;
+    }
+
+    /* ══ MENSAJE DE ERROR ══ */
+    #bet-error-msg {
+        background: rgba(204,0,0,.15);
+        border: 2px solid var(--poke-red);
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: .45rem;
+        color: var(--poke-red);
+        text-align: center;
+        animation: shake .3s ease;
+    }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+    /* ══ BOTÓN CONFIRMAR APUESTA ══ */
+    #bet-confirm-btn {
+        width: 100%;
+        font-family: 'Press Start 2P', monospace;
+        font-size: .65rem;
+        background: var(--poke-red);
+        color: white;
+        border: 4px solid #1C1C1C;
+        box-shadow: 3px 3px 0 #1C1C1C;
+        border-radius: 4px;
+        padding: 16px;
+        cursor: pointer;
+        margin-bottom: 12px;
+        position: relative;
+        transition: all .15s;
+        line-height: 1.4;
+    }
+    #bet-confirm-btn::before {
+        content: '▶';
+        position: absolute;
+        left: 14px;
+        opacity: 0;
+        color: var(--poke-yellow);
+        transition: opacity .15s;
+    }
+    #bet-confirm-btn:hover:not(:disabled)::before { opacity: 1; }
+    #bet-confirm-btn:hover:not(:disabled) {
+        background: var(--poke-dark-red);
+        box-shadow: 4px 4px 0 #1C1C1C;
+        transform: translateY(-1px);
+    }
+    #bet-confirm-btn:disabled {
+        background: #546E7A;
+        color: #90A4AE;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    /* ══ BOTÓN VOLVER ══ */
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(0,0,0,.4);
+        border: 2px solid var(--poke-yellow);
+        border-radius: 4px;
+        color: var(--poke-yellow);
+        font-family: 'Press Start 2P', monospace;
+        font-size: .5rem;
+        padding: 7px 12px;
+        cursor: pointer;
+        margin-bottom: 18px;
+        text-decoration: none;
+    }
+    .back-btn:hover { background: rgba(255,214,0,.15); }
+
+    /* ══ LEYENDA DE REGLAS ══ */
+    .rules-box {
+        background: rgba(0,0,0,.35);
+        border: 3px solid #37474F;
+        border-radius: 4px;
+        padding: 14px 16px;
+        margin-bottom: 22px;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #CFD8DC;
+    }
+    .rules-box strong {
+        font-family: 'Press Start 2P', monospace;
+        font-size: .5rem;
+        color: var(--poke-yellow);
+        display: block;
+        margin-bottom: 10px;
+    }
+    .rule-item { display: flex; gap: 10px; margin-bottom: 5px; }
+    .rule-icon { flex-shrink: 0; }
+
+    /* ══ UTILITIES ══ */
+    .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="coliseo-container">
+
+    <!-- ══ HEADER ══ -->
+    <div class="coliseo-header">
+        <h1 class="coliseo-title">🏟️ COLISEO<br>DE APUESTAS</h1>
+        <p class="coliseo-subtitle">Pon en juego a tu Pokémon en el Modo Batalla</p>
+    </div>
+
+    <!-- ══ BOTÓN VOLVER ══ -->
+    <a class="back-btn" href="index (1).html">◀ PUEBLO PALETA</a>
+
+    <!-- ══ BANNER APUESTA PENDIENTE (se muestra si había una partida sin resolver) ══ -->
+    <div id="bet-existing-banner" class="hidden">
+        ⚠️ APUESTA SIN RESOLVER DETECTADA<br>
+        <span id="bet-existing-msg"></span><br>
+        <button onclick="BetSystem.clearBet(); location.reload();">🗑️ Cancelar apuesta anterior</button>
+    </div>
+
+    <!-- ══ INFO DEL ENTRENADOR ══ -->
+    <div class="trainer-info-bar">
+        <span>
+            <span class="trainer-label">ENTRENADOR: </span>
+            <span class="trainer-val" id="bet-trainer-name">—</span>
+        </span>
+        <span>
+            <span class="trainer-label">XP TOTAL: </span>
+            <span class="trainer-val" id="bet-trainer-xp">0 XP</span>
+        </span>
+    </div>
+
+    <!-- ══ REGLAS DE LA SALA ══ -->
+    <div class="rules-box">
+        <strong>📜 REGLAS DEL COLISEO</strong>
+        <div class="rule-item"><span class="rule-icon">⚔️</span><span>Selecciona un Pokémon de tu Pokédex como apuesta.</span></div>
+        <div class="rule-item"><span class="rule-icon">🏆</span><span>Si ganas la batalla (≥70% acierto), conservas tu Pokémon y recibes XP extra + un Pokémon de trofeo.</span></div>
+        <div class="rule-item"><span class="rule-icon">💀</span><span>Si pierdes (< 70%), tu Pokémon apostado huye para siempre de tu Pokédex.</span></div>
+        <div class="rule-item"><span class="rule-icon">⚡</span><span>Mayor dificultad = mayor XP ganado si triunfas.</span></div>
+    </div>
+
+    <!-- ══ PASO 1: ELEGIR DIFICULTAD ══ -->
+    <p class="section-title">PASO 1 — ELIGE LA DIFICULTAD DEL RIVAL</p>
+    <div class="difficulty-row">
+        <button class="bet-diff-btn" data-diff="easy">
+            🌱 BROCK
+            <small>5 Vidas · 5 Preg.</small>
+            <small style="color:var(--poke-green)">+20 XP si ganas</small>
+        </button>
+        <button class="bet-diff-btn" data-diff="medium">
+            ⚡ MISTY
+            <small>3 Vidas · 10 Preg.</small>
+            <small style="color:var(--poke-yellow)">+50 XP si ganas</small>
+        </button>
+        <button class="bet-diff-btn" data-diff="hard">
+            🔥 GARY OAK
+            <small>1 Vida · 15 Preg.</small>
+            <small style="color:var(--poke-red)">+100 XP si ganas</small>
+        </button>
+    </div>
+
+    <!-- ══ PASO 2: ELEGIR POKÉMON ══ -->
+    <p class="section-title">PASO 2 — ELIGE EL POKÉMON QUE ARRIESGAS</p>
+
+    <!-- Estado: sin Pokémon capturados -->
+    <div id="bet-empty-warning" class="hidden">
+        <span class="warn-icon">😔</span>
+        <span class="warn-title">¡No tienes Pokémon para apostar!</span>
+        <p>Debes capturar al menos uno en el <strong>Modo Práctica</strong> antes de entrar al Coliseo.</p>
+        <a href="index (1).html">🌿 Ir a capturar Pokémon</a>
+    </div>
+
+    <!-- Grid de Pokémon disponibles -->
+    <div id="bet-pokemon-section">
+        <div id="bet-pokemon-grid">
+            <!-- Generado dinámicamente por batalla.js -->
+        </div>
+    </div>
+
+    <!-- Panel preview del Pokémon seleccionado -->
+    <div id="bet-preview-panel" class="hidden">
+        <img id="bet-preview-img" class="preview-sprite" src="" alt="Pokémon apostado">
+        <div class="preview-info">
+            <span class="preview-label">APOSTANDO A:</span>
+            <span id="bet-preview-name">—</span>
+            <span id="bet-preview-type">—</span>
+            <span class="preview-risk">⚠️ Si pierdes, este Pokémon<br>desaparecerá de tu Pokédex.</span>
+        </div>
+    </div>
+
+    <!-- Mensaje de error inline -->
+    <div id="bet-error-msg" class="hidden"></div>
+
+    <!-- ══ BOTÓN CONFIRMAR ══ -->
+    <button id="bet-confirm-btn" disabled>
+        ⚔️ SELECCIONA UN POKÉMON PARA APOSTAR
+    </button>
+
+    <a class="back-btn" href="index (1).html" style="width:100%;justify-content:center;">
+        ✖ CANCELAR Y VOLVER
+    </a>
+
+</div>
+
+<script src="batalla.js"></script>
+</body>
+</html>
