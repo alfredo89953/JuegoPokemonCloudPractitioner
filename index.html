@@ -2,19 +2,385 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="3; url=index (1).html">
-    <title>Redireccionando...</title>
-    <script>
-        // Respaldo en JavaScript en caso de que el meta tag falle
-        setTimeout(function() {
-            window.location.href = "index (1).html";
-        }, 3000); // 3000 milisegundos = 3 segundos
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokédex Terminal | Sincronización</title>
+    
+    <meta http-equiv="refresh" content="10;url=index (1).html">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* =========================================
+           1. VARIABLES CSS (Escalabilidad y Temática)
+           ========================================= */
+        :root {
+            --poke-red: #E3350D;
+            --poke-white: #F0F0F0;
+            --dark-bg: #0F172A;
+            --panel-bg: #1E293B;
+            --dark-grey: #111827;
+            --blue-glow: #00E5FF;
+            --text-primary: #FFFFFF;
+            --text-muted: #94A3B8;
+            --transition-smooth: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* =========================================
+           2. RESET & LAYOUT GLOBAL (Mobile First)
+           ========================================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Evita scroll por las partículas */
+            position: relative;
+        }
+
+        /* Contenedor del Canvas para partículas (Fondo) */
+        #particle-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.6;
+        }
+
+        /* =========================================
+           3. UI COMPONENTS (Card & Typograhy)
+           ========================================= */
+        .splash-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.85); /* Vidrio esmerilado sutil */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 3rem 2rem;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 
+                        inset 0 0 0 1px rgba(0, 229, 255, 0.1);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            color: var(--poke-white);
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-bottom: 2.5rem;
+        }
+
+        /* =========================================
+           4. POKÉBALL INTERACTIVA (CSS Puro)
+           ========================================= */
+        .pokeball {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 6px solid var(--dark-grey);
+            position: relative;
+            background: linear-gradient(
+                to bottom, 
+                var(--poke-red) 0%, 
+                var(--poke-red) 48%, 
+                var(--dark-grey) 48%, 
+                var(--dark-grey) 52%, 
+                var(--poke-white) 52%, 
+                var(--poke-white) 100%
+            );
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4), 
+                        inset -8px -8px 15px rgba(0,0,0,0.1);
+            transition: transform var(--transition-smooth);
+            cursor: pointer;
+            margin-bottom: 2.5rem;
+        }
+
+        /* Botón central de la Pokéball */
+        .pokeball::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 34px;
+            height: 34px;
+            background: var(--poke-white);
+            border: 5px solid var(--dark-grey);
+            border-radius: 50%;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+            z-index: 2;
+        }
+
+        /* Núcleo de energía (LED Azul) */
+        .pokeball::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 12px;
+            height: 12px;
+            background: var(--dark-grey);
+            border-radius: 50%;
+            z-index: 3;
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Efectos Hover */
+        .pokeball:hover {
+            transform: scale(1.1) rotate(15deg);
+        }
+        
+        .pokeball:hover::after, 
+        .pokeball.is-syncing::after {
+            background: var(--blue-glow);
+            box-shadow: 0 0 10px var(--blue-glow), 0 0 20px var(--blue-glow);
+        }
+
+        /* Animación de Sincronización (JS la activa) */
+        .pokeball.is-syncing {
+            animation: bounce-spin 1s infinite alternate;
+            pointer-events: none;
+        }
+
+        @keyframes bounce-spin {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.05) rotate(-10deg); }
+            100% { transform: scale(1) rotate(10deg); }
+        }
+
+        /* =========================================
+           5. BOTÓN DE ACCIÓN (Futurista)
+           ========================================= */
+        .btn-action {
+            font-family: 'Orbitron', sans-serif;
+            background: transparent;
+            color: var(--blue-glow);
+            border: 2px solid var(--blue-glow);
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 250px;
+        }
+
+        .btn-action::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--blue-glow);
+            z-index: -1;
+            transform: scaleX(0);
+            transform-origin: right;
+            transition: transform 0.4s ease;
+        }
+
+        .btn-action:hover {
+            color: var(--dark-bg);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+        }
+
+        .btn-action:hover::before {
+            transform: scaleX(1);
+            transform-origin: left;
+        }
+
+        .btn-action:disabled {
+            background: var(--blue-glow);
+            color: var(--dark-bg);
+            cursor: not-allowed;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+            border-color: var(--blue-glow);
+        }
+
+        /* Texto de estado de red */
+        .network-status {
+            margin-top: 1.5rem;
+            font-size: 0.85rem;
+            color: var(--blue-glow);
+            opacity: 0; /* Oculto por defecto */
+            transition: opacity 0.3s ease;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 1px;
+        }
+        
+        .network-status.visible {
+            opacity: 1;
+            animation: pulse-text 1.5s infinite;
+        }
+
+        @keyframes pulse-text {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Puntos suspensivos animados */
+        .dots::after {
+            content: '';
+            animation: loading-dots 1.5s infinite steps(4, end);
+        }
+
+        @keyframes loading-dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+
+    </style>
 </head>
 <body>
-    <div style="text-align: center; margin-top: 50px; font-family: Arial, sans-serif;">
-        <p>Estamos redirigiéndote a la nueva versión...</p>
-        <p>Si no redirige en unos segundos, <a href="index (1).html">haz clic aquí</a>.</p>
-    </div>
+
+    <canvas id="particle-canvas"></canvas>
+
+    <main class="splash-container">
+        <h1>Sistema Central</h1>
+        <p class="subtitle">Terminal de Red Pokémon</p>
+
+        <div class="pokeball" id="pokeball-core" role="button" aria-label="Sincronizar Pokédex"></div>
+
+        <button class="btn-action" id="action-btn">Conectar Pokédex</button>
+        
+        <div class="network-status" id="status-text">Estableciendo enlace de datos<span class="dots"></span></div>
+    </main>
+
+    <script>
+        /** =========================================
+         * LÓGICA DE REDIRECCIÓN (Vanilla JS)
+         * ========================================= */
+        const actionBtn = document.getElementById('action-btn');
+        const pokeballCore = document.getElementById('pokeball-core');
+        const statusText = document.getElementById('status-text');
+
+        // Función central que maneja la secuencia de carga
+        const triggerSyncSequence = () => {
+            // 1. Prevenir múltiples clics
+            actionBtn.disabled = true;
+            
+            // 2. Cambios visuales (Botón y Texto)
+            actionBtn.innerHTML = 'Sincronizando<span class="dots"></span>';
+            statusText.classList.add('visible');
+            
+            // 3. Activar animación de la Pokéball
+            pokeballCore.classList.add('is-syncing');
+
+            // 4. Temporizador de 2.5s antes de redirigir
+            setTimeout(() => {
+                // Notifica éxito rápido antes del salto (detalles UI/UX)
+                actionBtn.innerHTML = '¡Conectado!';
+                statusText.innerText = 'Redireccionando...';
+                
+                // Redirección al archivo local secundario
+                window.location.href = 'index (1).html';
+            }, 2500);
+        };
+
+        // Escuchar clics tanto en el botón como en la Pokéball
+        actionBtn.addEventListener('click', triggerSyncSequence);
+        pokeballCore.addEventListener('click', triggerSyncSequence);
+
+        /** =========================================
+         * SISTEMA DE PARTÍCULAS (Canvas API - Rendimiento)
+         * Simula polvo estelar o flujo de datos en el fondo.
+         * ========================================= */
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let particlesArray = [];
+
+        // Asegurar que el canvas cubra toda la ventana incluso al redimensionar
+        const resizeCanvas = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Clase Partícula
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 0.5; // Tamaño pequeño (estrellas/pixeles)
+                this.speedX = Math.random() * 1 - 0.5; // Movimiento horizontal lento
+                this.speedY = Math.random() * 1 - 0.5; // Movimiento vertical lento
+                // Variación sutil en el color azul/celeste
+                this.color = `rgba(0, 229, 255, ${Math.random() * 0.5 + 0.1})`; 
+            }
+            
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                // Rebotar en los bordes suavemente
+                if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Inicializar partículas (Cantidad optimizada para evitar lag)
+        const initParticles = () => {
+            particlesArray = [];
+            const numberOfParticles = (canvas.width * canvas.height) / 9000; // Densidad responsiva
+            for (let i = 0; i < numberOfParticles; i++) {
+                particlesArray.push(new Particle());
+            }
+        };
+
+        // Bucle de animación (60 FPS manejados por el navegador)
+        const animateParticles = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+            }
+            requestAnimationFrame(animateParticles);
+        };
+
+        initParticles();
+        animateParticles();
+
+    </script>
 </body>
 </html>
