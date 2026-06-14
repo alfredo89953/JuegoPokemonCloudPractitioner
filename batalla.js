@@ -12,17 +12,40 @@
 // ==================================================================
 // CLAVE COMPARTIDA CON app.js — No modificar sin actualizar ambos lados
 // ==================================================================
-const BET_KEY   = 'simcert_active_bet';   // { username, pokemon, config, difficulty }
+const BET_KEY    = 'simcert_active_bet';   // { username, pokemon, difficulty, timestamp }
 const CAUGHT_KEY = 'poke_caught';
 const XP_KEY     = 'poke_xp';
 
 // ==================================================================
+// CONSTANTE DE NAVEGACIÓN — Actualizar si se renombra el archivo destino
+// ==================================================================
+/**
+ * Nombre del archivo principal del juego tal como está alojado en el servidor.
+ * Se usa en la redirección del handshake de apuesta.
+ * ⚠️ Mantener sincronizado con el <link> del sw.js y la ruta real en S3.
+ */
+const INDEX_PAGE = 'index (1).html';
+
+/**
+ * TTL de la apuesta en milisegundos.
+ * Debe ser idéntico al valor de BetHandshakeParser.BET_TTL_MS en app.js.
+ */
+const BET_TTL_MS = 10 * 60 * 1000; // 10 minutos
+
+// ==================================================================
 // UTILIDADES COMPARTIDAS (duplicadas mínimas para no depender de app.js)
 // ==================================================================
+// ==========================================
+// REEMPLAZAR EN batalla.js: getCurrentUser dentro de BetUtils
+// ==========================================
 const BetUtils = {
     getCurrentUser() {
-        return localStorage.getItem('aws_sim_username') || 'Alumno_Anonimo';
+        // Lee directamente la clave unificada, usando el mismo fallback
+        const lsUser = localStorage.getItem('aws_sim_username');
+        if (lsUser && lsUser.trim() !== '') return lsUser.trim();
+        return 'Alumno_Anonimo';
     },
+   
     getCaughtPokemon() {
         const u = this.getCurrentUser();
         const all = JSON.parse(localStorage.getItem(CAUGHT_KEY) || '{}');
@@ -72,8 +95,8 @@ const BetSystem = {
     saveBet(pokemon, difficulty) {
         const bet = {
             username:   BetUtils.getCurrentUser(),
-            pokemon:    pokemon,          // { id, name, types }
-            difficulty: difficulty,       // 'easy' | 'medium' | 'hard'
+            pokemon:    pokemon,     // { id, name, types }
+            difficulty: difficulty,  // 'easy' | 'medium' | 'hard'
             timestamp:  Date.now()
         };
         localStorage.setItem(BET_KEY, JSON.stringify(bet));
@@ -91,7 +114,7 @@ const BetSystem = {
         } catch { return null; }
     },
 
-    /** Elimina la apuesta activa (tras resolverla) */
+    /** Elimina la apuesta activa (tras resolverla o cancelarla) */
     clearBet() {
         localStorage.removeItem(BET_KEY);
     },
@@ -112,7 +135,6 @@ const BetSystem = {
         const bet = this.loadBet();
         if (!bet) return { outcome: 'none', message: '', xpDelta: 0 };
 
-        // Validar que el usuario es el mismo que apostó
         if (bet.username !== BetUtils.getCurrentUser()) {
             this.clearBet();
             return { outcome: 'none', message: '', xpDelta: 0 };
@@ -121,30 +143,26 @@ const BetSystem = {
         let outcome, message, xpDelta;
 
         if (didWin) {
-            // VICTORIA: conserva su Pokémon + recibe XP extra proporcional al resultado
             xpDelta = pct >= 90 ? 80 : (pct >= 70 ? 50 : 30);
             BetUtils.addXP(xpDelta);
 
-            // Premio adicional por dificultad
             const diffBonus = { easy: 0, medium: 20, hard: 50 };
             const bonus = diffBonus[bet.difficulty] || 0;
             if (bonus > 0) BetUtils.addXP(bonus);
             xpDelta += bonus;
 
-            // Premio especial: regala un Pokémon random de premio si ganó bien
             let prizePokemon = null;
             if (pct >= 70) {
                 prizePokemon = this._pickPrizePokemon(bet.pokemon.id);
                 if (prizePokemon) BetUtils.addCaughtPokemon(prizePokemon);
             }
 
-            outcome  = 'win';
-            message  = prizePokemon
+            outcome = 'win';
+            message = prizePokemon
                 ? `🏆 ¡VICTORIA! Conservas a ${bet.pokemon.name.toUpperCase()} y capturas a ${prizePokemon.name.toUpperCase()} como trofeo. +${xpDelta} XP`
                 : `🏆 ¡VICTORIA! Conservas a ${bet.pokemon.name.toUpperCase()}. +${xpDelta} XP`;
 
         } else {
-            // DERROTA: pierde el Pokémon apostado
             BetUtils.removeCaughtPokemon(bet.pokemon.id);
             xpDelta = -20;
             BetUtils.addXP(xpDelta);
@@ -159,12 +177,9 @@ const BetSystem = {
 
     /**
      * Selecciona un Pokémon de premio para el ganador.
-     * Escoge uno de la wildPokemonTable del proyecto (ids conocidos),
-     * evitando duplicar al Pokémon apostado y los ya capturados.
      * @private
      */
     _pickPrizePokemon(excludeId) {
-        // Pool de posibles premios (subconjunto de rango común 1-99)
         const PRIZE_POOL = [
             { id: 1,  name: 'Bulbasaur',  types: ['Planta', 'Veneno'] },
             { id: 4,  name: 'Charmander', types: ['Fuego'] },
@@ -184,7 +199,7 @@ const BetSystem = {
     },
 
     // ------------------------------------------------------------------
-    // RENDERIZADO DE LA UI — Sala de Apuestas (llamado desde batalla.html)
+    // RENDERIZADO DE LA UI — Sala de Apuestas
     // ------------------------------------------------------------------
 
     /** Inicializa toda la UI de la sala de apuestas */
@@ -196,7 +211,7 @@ const BetSystem = {
         this._checkExistingBet();
     },
 
-    /** Muestra el nombre del entrenador activo */
+    /** Muestra el nombre y XP del entrenador activo */
     _renderUserInfo() {
         const el = document.getElementById('bet-trainer-name');
         if (el) el.textContent = BetUtils.getCurrentUser();
@@ -214,7 +229,6 @@ const BetSystem = {
                 this._updateConfirmButton();
             });
         });
-        // Seleccionar medium por defecto
         const defaultBtn = document.querySelector('.bet-diff-btn[data-diff="medium"]');
         if (defaultBtn) defaultBtn.classList.add('selected');
     },
@@ -263,16 +277,15 @@ const BetSystem = {
         cardEl.classList.add('selected');
         this._selectedPokemon = pokemon;
 
-        // Actualizar el panel de preview
-        const preview = document.getElementById('bet-preview-panel');
+        const preview     = document.getElementById('bet-preview-panel');
         const previewImg  = document.getElementById('bet-preview-img');
         const previewName = document.getElementById('bet-preview-name');
         const previewType = document.getElementById('bet-preview-type');
 
-        if (preview)      preview.classList.remove('hidden');
-        if (previewImg)   previewImg.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`;
-        if (previewName)  previewName.textContent = pokemon.name.toUpperCase();
-        if (previewType)  previewType.textContent = pokemon.types.join(' · ');
+        if (preview)     preview.classList.remove('hidden');
+        if (previewImg)  previewImg.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`;
+        if (previewName) previewName.textContent = pokemon.name.toUpperCase();
+        if (previewType) previewType.textContent = pokemon.types.join(' · ');
 
         this._updateConfirmButton();
     },
@@ -284,27 +297,43 @@ const BetSystem = {
         btn.addEventListener('click', () => this._confirmBet());
     },
 
-    /** Valida y confirma la apuesta, redirigiendo a index.html con parámetros */
+    // ------------------------------------------------------------------
+    // CONFIRMACIÓN Y REDIRECCIÓN CON HANDSHAKE DE URL
+    // ------------------------------------------------------------------
+
+    /**
+     * Valida la selección, persiste la apuesta en localStorage y redirige al
+     * juego principal inyectando el contexto completo como query parameters.
+     *
+     * El destino recibe:
+     *   ?mode=trivia     → Indica modo Batalla (única fuente de apuestas)
+     *   &difficulty=X    → 'easy' | 'medium' | 'hard'
+     *   &bet=1           → Flag de handshake; app.js busca simcert_active_bet en localStorage
+     *
+     * La URL se limpia en app.js con history.replaceState para blindar contra F5.
+     */
+// ==========================================
+// REEMPLAZAR EN batalla.js: _confirmBet dentro de BetSystem
+// ==========================================
     _confirmBet() {
         if (!this._selectedPokemon) {
             this._flashError('¡Elige un Pokémon para apostar primero!');
             return;
         }
+
         const difficulty = this._selectedDifficulty || 'medium';
 
-        // Guardar apuesta en localStorage
+        // 1. Guardar el estado de la apuesta en el LocalStorage
         this.saveBet(this._selectedPokemon, difficulty);
 
-        // Redirigir a index.html pasando modo y dificultad por query string
-        const params = new URLSearchParams({
-            mode:       'trivia',
-            difficulty: difficulty,
-            bet:        '1'           // Bandera para que app.js sepa que viene de una apuesta
-        });
-        window.location.href = `index (1).html?${params.toString()}`;
+        // 2. Construir la URL de handoff con los parámetros requeridos
+        const targetUrl = `${INDEX_PAGE}?mode=trivia&difficulty=${difficulty}&bet=1`;
+        
+        // 3. Redirigir la ventana (app.js interceptará estos parámetros al cargar)
+        window.location.href = targetUrl;
     },
 
-    /** Actualiza el estado visual/habilitación del botón de confirmar */
+    /** Actualiza el estado visual y la habilitación del botón de confirmar */
     _updateConfirmButton() {
         const btn = document.getElementById('bet-confirm-btn');
         if (!btn) return;
@@ -329,20 +358,66 @@ const BetSystem = {
         setTimeout(() => el.classList.add('hidden'), 3000);
     },
 
+    // ------------------------------------------------------------------
+    // DETECCIÓN DE APUESTA PENDIENTE CON TIEMPO RESTANTE
+    // ------------------------------------------------------------------
+
     /**
-     * Si ya existe una apuesta guardada (partida interrumpida),
-     * ofrece al usuario continuar o cancelarla.
+     * Si ya existe una apuesta guardada (partida interrumpida o navegación de vuelta),
+     * muestra el banner informativo con el tiempo de vida restante y las opciones
+     * de continuar (redirigir al juego) o cancelar (limpiar y quedarse aquí).
      */
     _checkExistingBet() {
         const existing = this.loadBet();
         if (!existing) return;
 
-        const banner = document.getElementById('bet-existing-banner');
+        // Calcular tiempo restante del TTL
+        const elapsedMs  = Date.now() - existing.timestamp;
+        const remainMs   = BET_TTL_MS - elapsedMs;
+
+        // Si ya expiró, limpiarla silenciosamente y no mostrar el banner
+        if (remainMs <= 0) {
+            this.clearBet();
+            return;
+        }
+
+        const remainMin  = Math.ceil(remainMs / 60_000);
+        const remainStr  = remainMs < 60_000
+            ? `${Math.ceil(remainMs / 1000)}s`
+            : `${remainMin} min`;
+
+        const banner    = document.getElementById('bet-existing-banner');
         const bannerMsg = document.getElementById('bet-existing-msg');
+
         if (banner && bannerMsg) {
-            bannerMsg.textContent = `Apuesta pendiente: ${existing.pokemon.name.toUpperCase()} en dificultad ${existing.difficulty.toUpperCase()}`;
+            bannerMsg.innerHTML =
+                `Apuesta pendiente: <strong>${existing.pokemon.name.toUpperCase()}</strong> ` +
+                `en dificultad <strong>${existing.difficulty.toUpperCase()}</strong> ` +
+                `· Expira en <strong>${remainStr}</strong>`;
             banner.classList.remove('hidden');
         }
+    },
+
+    /**
+     * Redirige directamente al combate usando la apuesta ya persistida,
+     * sin modificarla (el usuario quiere continuar la partida interrumpida).
+     * Vinculado al botón "Continuar apuesta" del banner existente.
+     */
+    continuePendingBet() {
+        const existing = this.loadBet();
+        if (!existing) {
+            this._flashError('La apuesta expiró. Selecciona un Pokémon nuevo.');
+            const banner = document.getElementById('bet-existing-banner');
+            if (banner) banner.classList.add('hidden');
+            return;
+        }
+
+        const params = new URLSearchParams({
+            mode:       'trivia',
+            difficulty: existing.difficulty,
+            bet:        '1'
+        });
+        window.location.href = `${INDEX_PAGE}?${params.toString()}`;
     }
 };
 

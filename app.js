@@ -316,7 +316,25 @@ function updateStreak(isCorrect) {
 // ==================================================================
 function getMedalData() { return JSON.parse(localStorage.getItem('poke_medals') || '{}'); }
 function saveMedalData(d) { localStorage.setItem('poke_medals', JSON.stringify(d)); }
-function getCurrentUser() { return document.getElementById('username-input')?.value.trim() || 'Alumno_Anonimo'; }
+
+// ==========================================
+// REEMPLAZAR EN app.js: Función getCurrentUser
+// ==========================================
+function getCurrentUser() {
+    // 1. Prioridad principal: LocalStorage (Fuente de verdad unificada con el Coliseo)
+    const lsUser = localStorage.getItem('aws_sim_username');
+    if (lsUser && lsUser.trim() !== '') return lsUser.trim();
+
+    // 2. Fallback de seguridad: Si el LocalStorage está vacío pero el input del DOM tiene texto
+    const domUser = document.getElementById('username-input')?.value;
+    if (domUser && domUser.trim() !== '') {
+        localStorage.setItem('aws_sim_username', domUser.trim()); // Sincroniza inmediatamente
+        return domUser.trim();
+    }
+
+    // 3. Fallback final por defecto
+    return 'Alumno_Anonimo';
+}
 
 function getMedalProgress(medalId) {
     const d = getMedalData(); const u = getCurrentUser();
@@ -1262,11 +1280,337 @@ async function handleFolderUpload(e) {
         document.getElementById('exam-start-btn').disabled = false;
         document.getElementById('practice-start-btn').disabled = false;
         updateErrorQuizButtonStatus();
+
+        // ── HOOK DE APUESTA ────────────────────────────────────────────────
+        // Si el usuario llegó desde el Coliseo (detectado en DOMContentLoaded),
+        // BetHandshakeParser arranca el juego automáticamente con la dificultad
+        // de la apuesta. Si no hay apuesta activa, este método es un no-op.
+        BetHandshakeParser.autoStartIfReady();
+        // ──────────────────────────────────────────────────────────────────
     } else {
         if (uploadTextEl) uploadTextEl.innerText = '❌ Error en carga. Intenta de nuevo.';
         alert('No se encontraron archivos JSON de examen válidos.');
     }
 }
+
+// ==================================================================
+// 18B. MÓDULO HANDSHAKE DE APUESTA — URL Query Parameter Parser
+// ==================================================================
+/**
+ * BetHandshakeParser — Orquestador del ciclo de vida de una apuesta al aterrizar en index.html.
+ *
+ * FLUJO COMPLETO:
+ *   batalla.html → _confirmBet() → saveBet() en localStorage → redirect con ?bet=1&mode=trivia&difficulty=X
+ *   index.html   → DOMContentLoaded → BetHandshakeParser.init()
+ *                → _validateBet()  → si válida: _showPendingBanner() + _preselectDifficulty()
+ *                → handleFolderUpload() termina → BetHandshakeParser.autoStartIfReady()
+ *                → startGame('trivia')
+ *
+ * MANEJO DE ERRORES SIN EXCEPCIONES:
+ *   - localStorage vacío       → toast + enlace de retorno al Coliseo
+ *   - Objeto corrupto/parcial  → limpia localStorage + mismo fallback
+ *   - Usuario diferente        → limpia localStorage + mismo fallback
+ *   - TTL expirado (10 min)    → limpia localStorage + mismo fallback
+ *   - Preguntas no cargadas    → marca _betPending = true; arranca cuando llegue handleFolderUpload
+ *
+ * CONSTANTE COMPARTIDA CON batalla.js:
+ *   BET_KEY    = 'simcert_active_bet'
+ *   BET_TTL_MS = 10 * 60 * 1000   ← sincronizar si se cambia en cualquiera de los dos archivos
+ */
+const BetHandshakeParser = {
+
+    // ------------------------------------------------------------------
+    // CONSTANTES DE MÓDULO — deben coincidir con batalla.js
+    // ------------------------------------------------------------------
+
+    /** Clave de localStorage compartida con batalla.js */
+    BET_KEY: 'simcert_active_bet',
+
+    /**
+     * TTL máximo en ms para aceptar una apuesta como válida.
+     * ⚠️ Mantener sincronizado con BET_TTL_MS en batalla.js.
+     */
+    BET_TTL_MS: 10 * 60 * 1000,
+
+    // ------------------------------------------------------------------
+    // ESTADO INTERNO DE LA INSTANCIA
+    // ------------------------------------------------------------------
+
+    /** true mientras la apuesta está validada pero el banco de preguntas no cargó aún */
+    _betPending: false,
+
+    /** Dificultad extraída del query param; se aplica cuando arranque el juego */
+    _betDifficulty: 'medium',
+
+    // ------------------------------------------------------------------
+    // PUNTO DE ENTRADA — llamar desde DOMContentLoaded
+    // ------------------------------------------------------------------
+
+    /**
+     * Evalúa los query params de la URL de aterrizaje.
+     * Si detecta el handshake del Coliseo:
+     *   1. Limpia la URL con history.replaceState (blindaje anti-F5)
+     *   2. Valida el objeto de apuesta en localStorage (triple verificación)
+     *   3. Si es válida: prepara la UI y marca _betPending = true
+     *   4. Si no es válida: muestra error elegante y no arranca el juego
+     */
+
+    // ==========================================
+// REEMPLAZAR EN app.js: init() y _cleanUrl() dentro de BetHandshakeParser
+// ==========================================
+    init() {
+        const params = new URLSearchParams(window.location.search);
+
+        // Validar si el parámetro de entrada de apuesta existe
+        if (params.get('bet') !== '1') return;
+
+        const rawDiff  = params.get('difficulty') || 'medium';
+        const safeDiff = ['easy', 'medium', 'hard'].includes(rawDiff) ? rawDiff : 'medium';
+
+        // LIMPIAR URL INMEDIATAMENTE PARA EVITAR BUGS DE F5 (Recargas accidentales)
+        this._cleanUrl();
+
+        // Validar si el objeto existe realmente en localStorage
+        const validation = this._validateBet();
+
+        if (!validation.valid) {
+            this._handleError(validation.reason);
+            return; // Muere en silencio si la URL fue alterada manualmente
+        }
+
+        // Apuesta válida: registrar estado y preparar UI
+        this._betPending    = true;
+        this._betDifficulty = safeDiff;
+
+        this._showPendingBanner(validation.bet, safeDiff);
+        this._preselectDifficulty(safeDiff);
+    },
+
+    _cleanUrl() {
+        try {
+            // Elimina los query parameters de la barra de búsqueda sin recargar la página
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (e) {
+            console.warn('[BetHandshake] history.replaceState no disponible:', e.message);
+        }
+    },
+
+
+    // ------------------------------------------------------------------
+    // VALIDACIÓN DEL OBJETO DE APUESTA (triple verificación)
+    // ------------------------------------------------------------------
+
+    /**
+     * Lee localStorage y valida el objeto de apuesta con tres capas:
+     *   1. Existencia y parseo JSON correcto
+     *   2. Estructura mínima de campos requeridos
+     *   3. Concordancia de usuario activo
+     *   4. Frescura del timestamp (TTL de 10 minutos)
+     *
+     * Cualquier fallo limpia la clave de localStorage antes de retornar.
+     *
+     * @returns {{ valid: boolean, bet: object|null, reason: string }}
+     */
+    _validateBet() {
+        let bet;
+
+        // Capa 1: existencia y parseo JSON
+        try {
+            const raw = localStorage.getItem(this.BET_KEY);
+            if (!raw) {
+                return { valid: false, bet: null, reason: 'No existe apuesta en localStorage.' };
+            }
+            bet = JSON.parse(raw);
+        } catch (e) {
+            localStorage.removeItem(this.BET_KEY);
+            return { valid: false, bet: null, reason: `JSON inválido en localStorage: ${e.message}` };
+        }
+
+        // Capa 2: estructura mínima de campos
+        const hasMinFields = bet
+            && bet.pokemon?.id
+            && bet.pokemon?.name
+            && Array.isArray(bet.pokemon?.types)
+            && bet.difficulty
+            && bet.username
+            && bet.timestamp;
+
+        if (!hasMinFields) {
+            localStorage.removeItem(this.BET_KEY);
+            return { valid: false, bet: null, reason: 'Objeto de apuesta incompleto o malformado.' };
+        }
+
+        // Capa 3: concordancia de usuario activo
+        const currentUser = localStorage.getItem('aws_sim_username') || 'Alumno_Anonimo';
+        if (bet.username !== currentUser) {
+            localStorage.removeItem(this.BET_KEY);
+            return {
+                valid:  false,
+                bet:    null,
+                reason: `Apuesta de "${bet.username}" ≠ usuario activo "${currentUser}".`
+            };
+        }
+
+        // Capa 4: TTL — la apuesta tiene una vida útil máxima de BET_TTL_MS
+        const elapsedMs = Date.now() - bet.timestamp;
+        if (elapsedMs > this.BET_TTL_MS) {
+            localStorage.removeItem(this.BET_KEY);
+            return {
+                valid:  false,
+                bet:    null,
+                reason: `Apuesta expirada (${Math.round(elapsedMs / 1000)}s > TTL ${this.BET_TTL_MS / 1000}s).`
+            };
+        }
+
+        return { valid: true, bet, reason: '' };
+    },
+
+    // ------------------------------------------------------------------
+    // UI — ESTADO DE APUESTA PENDIENTE
+    // ------------------------------------------------------------------
+
+    /**
+     * Modifica la zona de estado del menú principal para indicar
+     * que hay una apuesta activa esperando el banco de preguntas.
+     * Actualiza el texto del drop-zone de archivos como guía contextual.
+     */
+    _showPendingBanner(bet, difficulty) {
+        const remainMs  = this.BET_TTL_MS - (Date.now() - bet.timestamp);
+        const remainStr = remainMs < 60_000
+            ? `${Math.ceil(remainMs / 1000)}s`
+            : `${Math.ceil(remainMs / 60_000)} min`;
+
+        // Panel de estado de carga del menú principal
+        const statusEl = document.getElementById('status-loaded');
+        if (statusEl) {
+            statusEl.innerHTML =
+                `⚔️ APUESTA ACTIVA: ` +
+                `<strong style="color:var(--poke-yellow)">${bet.pokemon.name.toUpperCase()}</strong> ` +
+                `en dificultad <strong style="color:var(--poke-yellow)">${difficulty.toUpperCase()}</strong>` +
+                ` · Expira en <strong>${remainStr}</strong>` +
+                ` · Carga tu banco para iniciar el combate.`;
+            statusEl.classList.remove('hidden');
+        }
+
+        // Etiqueta del drop-zone de archivos como indicación contextual
+        const uploadText = document.getElementById('upload-text');
+        if (uploadText) {
+            uploadText.innerHTML =
+                `📂 CARGA TU BANCO DE PREGUNTAS<br>` +
+                `<span style="font-size:.8em;color:var(--poke-yellow);">` +
+                `La batalla comenzará automáticamente al finalizar ⚔️` +
+                `</span>`;
+        }
+
+        showToast(
+            `⚔️ ¡${bet.pokemon.name.toUpperCase()} está en juego!\nCarga tus preguntas para iniciar el combate.`,
+            5000
+        );
+    },
+
+    /**
+     * Aplica la dificultad de la apuesta al estado global del juego
+     * y actualiza visualmente los botones de selección en el menú.
+     * No llama a selectDifficulty() directamente para evitar guardar
+     * estado prematuro antes de que el banco esté cargado.
+     *
+     * @param {string} difficulty - 'easy' | 'medium' | 'hard'
+     */
+    _preselectDifficulty(difficulty) {
+        // Actualizar la variable de estado global que usa startGame()
+        selectedConfig = difficulties[difficulty] ?? difficulties.medium;
+
+        // Sincronizar los botones de dificultad en la UI
+        document.querySelectorAll('.btn-diff').forEach(btn => {
+            btn.classList.remove('selected');
+            // Los botones tienen onclick="selectDifficulty('easy', this)" etc.
+            if (btn.getAttribute('onclick')?.includes(`'${difficulty}'`)) {
+                btn.classList.add('selected');
+            }
+        });
+    },
+
+    // ------------------------------------------------------------------
+    // AUTOARRANQUE — llamar desde handleFolderUpload() cuando masterQuestionBank cargó
+    // ------------------------------------------------------------------
+
+    /**
+     * Verifica si hay una apuesta pendiente y, si es así, lanza el juego
+     * automáticamente con la dificultad correcta de la apuesta.
+     *
+     * ⚙️ HOOK DE INTEGRACIÓN: debe invocarse al final de handleFolderUpload(),
+     * justo después de confirmar que masterQuestionBank.length > 0.
+     *
+     * Re-valida la apuesta en este punto por si expiró durante la carga
+     * de archivos (el usuario tardó más del TTL en subir sus JSONs).
+     */
+    autoStartIfReady() {
+        // Sin apuesta pendiente → flujo de inicio normal, no hacer nada
+        if (!this._betPending) return;
+
+        // Reset del flag antes de cualquier async para evitar doble arranque
+        this._betPending = false;
+
+        // Re-validar la apuesta (podría haber expirado mientras el usuario cargaba archivos)
+        const validation = this._validateBet();
+
+        if (!validation.valid) {
+            showToast(
+                `⚠️ La apuesta expiró durante la carga de archivos.\nVuelve al Coliseo para apostar de nuevo.`,
+                5000
+            );
+            console.warn('[BetHandshake] Apuesta inválida en autoStartIfReady:', validation.reason);
+            // Restaurar el drop-zone a su estado normal
+            const uploadText = document.getElementById('upload-text');
+            if (uploadText) uploadText.innerHTML = '📂 ¡MOCHILA CONTRATADA — BANCO CARGADO!';
+            return;
+        }
+
+        // Confirmar la dificultad como si el usuario la hubiera elegido manualmente
+        this._preselectDifficulty(this._betDifficulty);
+
+        showToast(
+            `⚔️ ¡${validation.bet.pokemon.name.toUpperCase()} entra al combate!\n¡Modo Batalla activo! Dificultad: ${this._betDifficulty.toUpperCase()}`,
+            3000
+        );
+
+        // Pequeño delay para que el toast sea legible antes de la transición
+        setTimeout(() => {
+            handleScreenTransition(() => startGame('trivia'));
+        }, 700);
+    },
+
+    // ------------------------------------------------------------------
+    // MANEJO DE ERRORES — falla silenciosa y elegante
+    // ------------------------------------------------------------------
+
+    /**
+     * Flujo de error del handshake:
+     *   - No lanza excepciones
+     *   - Muestra toast informativo al usuario
+     *   - Inyecta enlace de retorno al Coliseo en el panel de estado
+     *
+     * @param {string} reason - Mensaje técnico (solo para console.warn)
+     */
+    _handleError(reason) {
+        console.warn('[BetHandshake] ⚠️ Handshake fallido:', reason);
+
+        showToast(
+            `⚠️ Apuesta no encontrada o expirada.\nVuelve al Coliseo para apostar de nuevo.`,
+            5000
+        );
+
+        const statusEl = document.getElementById('status-loaded');
+        if (statusEl) {
+            statusEl.innerHTML =
+                `⚠️ Apuesta no encontrada o expirada. ` +
+                `<a href="batalla.html" style="color:var(--poke-yellow);text-decoration:underline;">` +
+                `← Volver al Coliseo ⚔️</a>`;
+            statusEl.classList.remove('hidden');
+        }
+    }
+};
+
 
 // ==================================================================
 // 18. CAPA ASÍNCRONA DE INICIALIZACIÓN DE REGISTROS (SERVICE WORKER)
@@ -1323,20 +1667,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Intentar recuperar sesión persistida previa por el módulo de estado
     const wasRestored = SimCertState.loadState();
 
-    // Detectar si venimos del Coliseo de Apuestas (parámetro ?bet=1)
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('bet') === '1' && urlParams.get('mode') === 'trivia') {
-    const betDiff = urlParams.get('difficulty') || 'medium';
-    // Limpiar la URL sin recargar la página
-    window.history.replaceState({}, '', window.location.pathname);
-    // Seleccionar dificultad y arrancar la batalla directamente
-    setTimeout(() => {
-        if (masterQuestionBank.length > 0) {
-            selectDifficulty(betDiff, document.querySelector(`.btn-diff[onclick*="${betDiff}"]`) || document.querySelector('.btn-diff'));
-            handleScreenTransition(() => startGame('trivia'));
-        }
-    }, 400);
-}
+    // ── HANDSHAKE DEL COLISEO DE APUESTAS ─────────────────────────────
+    // Detecta ?bet=1 en la URL, valida la apuesta en localStorage (triple
+    // verificación: estructura, usuario y TTL) y prepara la UI.
+    // Si el banco de preguntas ya está cargado, arranca el juego aquí mismo
+    // vía autoStartIfReady(). Si aún no está cargado, el arranque queda
+    // diferido hasta que handleFolderUpload() invoque autoStartIfReady().
+    BetHandshakeParser.init();
+    // ──────────────────────────────────────────────────────────────────
+
     if (wasRestored && activeQuestionBank && activeQuestionBank.length > 0) {
         setTimeout(() => {
             if (confirm('⚔️ Detectamos una simulación interrumpida de forma imprevista.\n¿Deseas restaurar la partida para no perder tus vidas actuales?')) {
