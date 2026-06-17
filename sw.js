@@ -1,13 +1,13 @@
 // sw.js - Service Worker Optimizado para SimCert
-const CACHE_NAME = 'simcert-cache-v2'; // Incrementa este número al actualizar tu app
+const CACHE_NAME = 'simcert-cache-v3'; // v3: integración poke-extensions
 
 // Archivos estáticos indispensables para arrancar offline (App Shell)
 const STATIC_ASSETS = [
   '/',
   '/index (1).html',
-  // Añade aquí tus rutas locales exactas si tienes archivos CSS/JS separados, por ejemplo:
-  // '/css/styles.css',
-  // '/js/app.js'
+  '/app.js',
+  '/poke-extensions.js',
+  '/styles.css',
 ];
 
 // Dominios externos permitidos para almacenamiento en caché estática (Fuentes e imágenes de sprites)
@@ -16,7 +16,9 @@ const TRUSTED_STATIC_ORIGINS = [
   'fonts.gstatic.com',
   'static.fandomspot.com',
   'wallpapers.com',
-  'www.spriters-resource.com'
+  'www.spriters-resource.com',
+  'raw.githubusercontent.com',
+  'images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com'
 ];
 
 // 1. EVENTO INSTALL: Pre-cacheo básico y bypass inmediato

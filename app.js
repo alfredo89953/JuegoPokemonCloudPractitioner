@@ -53,14 +53,14 @@ const wildPokemonTable = [
 ];
 
 const MEDALS_DEF = [
-    { id: "trivia_nodeath", icon: "🪨", name: "Medalla Roca", desc: "Completa Batalla sin morir 10 veces", mode: "trivia", target: 10 },
-    { id: "errors_nodeath", icon: "🌊", name: "Medalla Cascada", desc: "Completa Revancha sin morir 10 veces", mode: "errors", target: 10 },
-    { id: "exam_nodeath", icon: "⚡", name: "Medalla Trueno", desc: "Completa Liga sin morir 10 veces", mode: "exam", target: 10 },
-    { id: "practice_nodeath", icon: "🌈", name: "Medalla Arco Iris", desc: "Completa Práctica sin morir 10 veces", mode: "practice", target: 10 },
-    { id: "pokemon_caught_10", icon: "🎖️", name: "Medalla Pokéball", desc: "Captura 10 Pokémon en Práctica", mode: "any", target: 10, stat: "caught" },
-    { id: "pokemon_caught_50", icon: "🏆", name: "Medalla Master", desc: "Captura 50 Pokémon en Práctica", mode: "any", target: 50, stat: "caught" },
-    { id: "level_10", icon: "⭐", name: "Medalla XP", desc: "Alcanza el Nivel 10", mode: "any", target: 10, stat: "level" },
-    { id: "streak_10", icon: "🔥", name: "Medalla Llama", desc: "Consigue una racha de 10 correctas", mode: "any", target: 10, stat: "streak" }
+    { id: "trivia_nodeath",    img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/1.png", name: "Medalla Roca",      desc: "Completa Batalla sin morir 25 veces",  mode: "trivia",   target: 25 },
+    { id: "errors_nodeath",    img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/2.png", name: "Medalla Cascada",   desc: "Completa Revancha sin morir 20 veces", mode: "errors",   target: 20 },
+    { id: "exam_nodeath",      img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/3.png", name: "Medalla Trueno",    desc: "Completa Liga sin morir 15 veces",     mode: "exam",     target: 15 },
+    { id: "practice_nodeath",  img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/4.png", name: "Medalla Arco Iris", desc: "Alcanza el Nivel 300",                 mode: "practice", target: 300, stat: "level" },
+    { id: "pokemon_caught_10", icon: "🎖️", name: "Medalla Pokéball",  desc: "Captura 10 Pokémon en Práctica",       mode: "any",      target: 10,  stat: "caught" },
+    { id: "pokemon_caught_50", icon: "🏆", name: "Medalla Master",    desc: "Captura 50 Pokémon en Práctica",       mode: "any",      target: 50,  stat: "caught" },
+    { id: "level_25",          icon: "⭐", name: "Medalla XP",        desc: "Alcanza el Nivel 25",                  mode: "any",      target: 25,  stat: "level" },
+    { id: "streak_15",         icon: "🔥", name: "Medalla Llama",     desc: "Consigue una racha de 15 correctas",   mode: "any",      target: 15,  stat: "streak" }
 ];
 
 const dailyTips = [
@@ -276,7 +276,7 @@ function awardXP(amount) {
     if (newLevel > prevLevel) {
         showToast(`⭐ ¡NIVEL ${newLevel}!\n¡Entrenador más fuerte!`);
         playTone([880, 1100, 1320], 120);
-        checkMedal('level_10');
+        checkMedal('level_25');
     }
 }
 
@@ -303,7 +303,7 @@ function updateStreak(isCorrect) {
             el.textContent = streak >= 2 ? `✨ RACHA x${streak}` : '';
             awardXP(10);
         }
-        if (streak >= 10) checkMedal('streak_10');
+        if (streak >= 10) checkMedal('streak_15');
     } else {
         if (streak >= 3) showToast(`💔 Racha de ${streak} perdida...`);
         streak = 0; el.textContent = '';
@@ -414,7 +414,10 @@ function renderMedals() {
         const card = document.createElement('div');
         card.className = 'medal-badge' + (prog.earned ? ' earned' : ' locked');
         card.title = `${def.desc} (${prog.count || 0}/${def.target})`;
-        card.innerHTML = `<span class="medal-icon">${def.icon}</span><span class="medal-name">${def.name}</span><span class="medal-count">${prog.count || 0}/${def.target}</span>`;
+        const iconHtml = def.img
+            ? `<img class="medal-icon-img" src="${def.img}" alt="${def.name}">`
+            : `<span class="medal-icon">${def.icon||'🎖️'}</span>`;
+        card.innerHTML = `${iconHtml}<span class="medal-name">${def.name}</span><span class="medal-count">${prog.count || 0}/${def.target}</span>`;
         grid.appendChild(card);
     });
 }
@@ -626,8 +629,20 @@ function updateErrorQuizButtonStatus() {
     if (!btn) return;
     if (masterQuestionBank.length === 0) { btn.classList.add('hidden'); btn.disabled = true; return; }
     const eq = getErrorQuestions(); btn.classList.remove('hidden');
-    if (eq.length > 0) { btn.disabled = false; btn.innerText = `💀 REVANCHA — Pokémon Debilitados (${Math.min(15, eq.length)} disponibles)`; }
-    else { btn.disabled = true; btn.innerText = '💀 REVANCHA — Todo en orden en el Centro Pokémon'; }
+    if (eq.length > 0) {
+        btn.disabled = false;
+        btn.innerText = `💀 REVANCHA — Pokémon Debilitados (${Math.min(15, eq.length)} disponibles)`;
+        // Sync card button
+        const wrap = document.getElementById('error-quiz-wrap');
+        const cardBtn = document.getElementById('error-quiz-btn-card');
+        if (wrap) wrap.style.display = '';
+        if (cardBtn) { cardBtn.disabled = false; cardBtn.textContent = `💊 CENTRO POKÉMON — Revancha (${Math.min(15, eq.length)} disponibles)`; }
+    } else {
+        btn.disabled = true;
+        btn.innerText = '💀 REVANCHA — Todo en orden en el Centro Pokémon';
+        const wrap = document.getElementById('error-quiz-wrap');
+        if (wrap) wrap.style.display = 'none';
+    }
 }
 
 // ==================================================================
@@ -1073,7 +1088,7 @@ if (!isExamMode && !isPracticeMode && !isErrorMode) {
     if (bonus > 0) { awardXP(bonus); showToast(`🏆 +${bonus} XP por completar la ronda!`); }
 
     if (noDeathThisRound && !isPracticeMode) checkNodeathMedal(isExamMode ? 'exam' : (isErrorMode ? 'errors' : 'trivia'));
-    checkMedal('streak_10'); renderMedals(); updateXpBar();
+    checkMedal('streak_15'); renderMedals(); updateXpBar();
     SimCertState.clearSession(); // Limpieza del estado temporal al terminar el juego con éxito
 }
 
@@ -1279,6 +1294,15 @@ async function handleFolderUpload(e) {
         document.getElementById('start-btn').disabled = false;
         document.getElementById('exam-start-btn').disabled = false;
         document.getElementById('practice-start-btn').disabled = false;
+        // Mostrar las tarjetas de modo enriquecidas (habilitarlas directamente, sin observer)
+        const gameModes = document.getElementById('game-modes');
+        if (gameModes) gameModes.classList.remove('hidden');
+        const cardBattle  = document.getElementById('start-btn-card');
+        const cardExam    = document.getElementById('exam-start-btn-card');
+        const cardPrac    = document.getElementById('practice-start-btn-card');
+        if (cardBattle) cardBattle.disabled  = false;
+        if (cardExam)   cardExam.disabled    = false;
+        if (cardPrac)   cardPrac.disabled    = false;
         updateErrorQuizButtonStatus();
 
         // ── HOOK DE APUESTA ────────────────────────────────────────────────

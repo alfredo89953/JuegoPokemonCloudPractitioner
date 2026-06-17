@@ -156,7 +156,20 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
 #hint-box{ background:rgba(255,214,0,.12); border:2px dashed var(--poke-yellow); border-radius:4px; padding:10px 14px; font-size:1.2rem; color:var(--poke-yellow); margin-bottom:10px; line-height:1.4; }
 
 /* ── SOUND BTN ── */
-#sound-toggle{ position:absolute; top:12px; right:12px; background:rgba(0,0,0,.4); border:2px solid #1C1C1C; border-radius:4px; color:var(--poke-yellow); font-size:1.2rem; cursor:pointer; padding:4px 8px; line-height:1; font-family:'VT323',monospace; }
+/* ── AUDIO CONTROLS (dual: música + sfx) ── */
+#audio-controls{
+    position:absolute; top:10px; right:10px;
+    display:flex; gap:5px; z-index:10;
+}
+#audio-controls button{
+    background:rgba(0,0,0,.45); border:2px solid #1C1C1C; border-radius:4px;
+    color:var(--poke-yellow); font-size:1rem; cursor:pointer;
+    padding:4px 8px; line-height:1; font-family:'VT323',monospace;
+    transition:border-color .15s, opacity .15s;
+}
+#audio-controls button.muted{ opacity:.45; border-color:#546E7A; color:#90A4AE; }
+/* Mantener el antiguo #sound-toggle por compatibilidad con app.js */
+#sound-toggle{ display:none; }
 
 /* ── TOAST ── */
 #toast-container{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9998; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
@@ -225,6 +238,56 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
 @keyframes toastOut{ from{transform:translateY(0);opacity:1} to{transform:translateY(80px);opacity:0} }
 @keyframes starPop{ 0%{transform:scale(0) rotate(-20deg);opacity:0} 60%{transform:scale(1.3) rotate(5deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:1} }
 @keyframes flashWhite{ 0%,100%{filter:none} 50%{filter:brightness(5) invert(1)} }
+
+/* ══ MINIMAP — Liga Pokémon ══ */
+#exam-minimap{width:100%;margin-bottom:14px;background:rgba(0,0,0,.45);border:3px solid #1C1C1C;border-radius:4px;padding:10px 12px;}
+.minimap-title{font-family:'Press Start 2P',monospace;font-size:.48rem;color:var(--poke-yellow);margin-bottom:8px;display:block;}
+.minimap-grid{display:flex;flex-wrap:wrap;gap:5px;}
+.mq-dot{width:26px;height:26px;border-radius:3px;border:2px solid #1C1C1C;font-family:'Press Start 2P',monospace;font-size:.38rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s,box-shadow .1s;background:#37474F;color:#CFD8DC;}
+.mq-dot:hover{transform:scale(1.15);box-shadow:0 0 6px var(--poke-yellow);}
+.mq-dot.mq-current{border-color:var(--poke-yellow);background:var(--poke-sky);color:#fff;box-shadow:0 0 8px var(--poke-yellow);}
+.mq-dot.mq-answered{background:#2E7D32;color:#fff;border-color:#1C1C1C;}
+.mq-dot.mq-flagged{background:#E65100;color:#fff;border-color:var(--poke-yellow);}
+.mq-dot.mq-flagged.mq-answered{background:#F57F17;}
+.minimap-legend{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;}
+.mq-legend-item{display:flex;align-items:center;gap:4px;font-family:'Press Start 2P',monospace;font-size:.38rem;color:#CFD8DC;}
+.mq-legend-dot{width:12px;height:12px;border-radius:2px;border:2px solid #1C1C1C;}
+/* Flag button */
+#flag-btn{background:rgba(0,0,0,.3);border:3px solid #E65100;border-radius:4px;color:#FF8A65;font-family:'Press Start 2P',monospace;font-size:.48rem;padding:6px 11px;cursor:pointer;margin-bottom:8px;display:inline-block;}
+#flag-btn.flagged{background:#E65100;color:#fff;}
+/* Potion button (hint override) */
+#hint-btn img.potion-icon{width:22px;height:22px;image-rendering:pixelated;vertical-align:middle;}
+
+/* ══ MODE CARDS ══ */
+.mode-card{border:4px solid #1C1C1C;border-radius:6px;margin-bottom:16px;overflow:hidden;box-shadow:4px 4px 0 #1C1C1C;transition:transform .15s,box-shadow .15s;}
+.mode-card:hover{transform:translateY(-2px);box-shadow:4px 8px 0 #1C1C1C;}
+.mode-card-battle{background:linear-gradient(135deg,#0D2137 0%,#1a3a5c 100%);border-color:#3949AB;}
+.mode-card-revancha{background:linear-gradient(135deg,#1a0a0a 0%,#3a1010 100%);border-color:var(--poke-red);}
+.mode-card-torneo{background:linear-gradient(135deg,#1a0d2e 0%,#3d1a6b 100%);border-color:#9C27B0;position:relative;overflow:visible;}
+.mode-card-practica{background:linear-gradient(135deg,#0a1f0a 0%,#1a3a1a 100%);border-color:#2E7D32;}
+.mode-card-torneo::before{content:'';position:absolute;inset:-2px;border-radius:8px;background:transparent;box-shadow:0 0 0 0 rgba(156,39,176,0);animation:torneoGlow 2.5s ease infinite;pointer-events:none;z-index:-1;}
+@keyframes torneoGlow{0%,100%{box-shadow:0 0 8px 0 rgba(156,39,176,.3);}50%{box-shadow:0 0 22px 6px rgba(156,39,176,.7),0 0 40px 10px rgba(255,214,0,.15);}}
+.mode-card-header{display:flex;align-items:center;gap:12px;padding:14px 16px 10px;border-bottom:2px solid rgba(255,255,255,.08);}
+.mode-card-icon{font-size:2rem;flex-shrink:0;}
+.mode-card-title{font-family:'Press Start 2P',monospace;font-size:.72rem;color:#fff;text-shadow:1px 1px 0 #000;margin-bottom:4px;}
+.mode-card-sub{font-family:'VT323',monospace;font-size:1.15rem;color:#B0BEC5;}
+.mode-card-badge{margin-left:auto;flex-shrink:0;font-family:'Press Start 2P',monospace;font-size:.42rem;padding:4px 8px;border-radius:3px;border:2px solid currentColor;}
+.badge-easy{color:#81C784;border-color:#81C784;} .badge-medium{color:var(--poke-yellow);border-color:var(--poke-yellow);} .badge-hard{color:#FF8A65;border-color:#FF8A65;} .badge-elite{color:#CE93D8;border-color:#CE93D8;animation:elitePulse 1.8s ease infinite;}
+@keyframes elitePulse{0%,100%{text-shadow:none;}50%{text-shadow:0 0 8px #CE93D8;}}
+.mode-card-body{padding:12px 16px;display:flex;flex-direction:column;gap:8px;}
+.mode-reward-row{display:flex;align-items:flex-start;gap:8px;font-family:'VT323',monospace;font-size:1.15rem;}
+.pill{flex-shrink:0;font-family:'Press Start 2P',monospace;font-size:.38rem;padding:3px 7px;border-radius:3px;border:2px solid currentColor;margin-top:2px;white-space:nowrap;}
+.pill-green{color:#81C784;border-color:#81C784;} .pill-red{color:#EF9A9A;border-color:#EF9A9A;} .pill-gold{color:var(--poke-yellow);border-color:var(--poke-yellow);} .pill-gray{color:#90A4AE;border-color:#546E7A;} .pill-list{color:#CFD8DC;line-height:1.4;}
+.mode-card-diff-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.diff-chip{font-family:'Press Start 2P',monospace;font-size:.38rem;padding:3px 8px;border-radius:3px;border:2px solid;}
+.diff-easy{color:#81C784;border-color:#81C784;background:rgba(129,199,132,.1);} .diff-medium{color:var(--poke-yellow);border-color:var(--poke-yellow);background:rgba(255,214,0,.08);} .diff-hard{color:#EF9A9A;border-color:#EF9A9A;background:rgba(239,154,154,.1);}
+.mode-torneo-warning{font-family:'Press Start 2P',monospace;font-size:.42rem;color:var(--poke-yellow);background:rgba(255,214,0,.07);border:2px solid rgba(255,214,0,.3);border-radius:3px;padding:7px 10px;margin-top:4px;line-height:1.7;animation:warnBlink 2s ease infinite;}
+@keyframes warnBlink{0%,100%{border-color:rgba(255,214,0,.25);}50%{border-color:var(--poke-yellow);}}
+.btn-battle-mode{background:linear-gradient(90deg,#1565C0 0%,#3949AB 100%)!important;margin-bottom:0!important;border-top:2px solid rgba(255,255,255,.1)!important;border-left:none!important;border-right:none!important;border-bottom:none!important;border-radius:0!important;}
+.btn-torneo-mode{background:linear-gradient(90deg,#6A1B9A 0%,#AB47BC 50%,#6A1B9A 100%)!important;background-size:200%!important;margin-bottom:0!important;border-top:2px solid rgba(255,255,255,.1)!important;border-left:none!important;border-right:none!important;border-bottom:none!important;border-radius:0!important;animation:torneoBtnShimmer 3s linear infinite!important;}
+@keyframes torneoBtnShimmer{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+/* Medal icon images */
+.medal-icon-img{width:42px;height:42px;image-rendering:pixelated;object-fit:contain;}
 </style>
 </head>
 <body>
@@ -250,7 +313,11 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
 </div>
 
 <div class="container">
-<button id="sound-toggle" onclick="toggleSound()" title="Sonido">🔊</button>
+<button id="sound-toggle" onclick="toggleSfx()" title="Efectos de sonido" style="display:none;">🔊</button>
+<div id="audio-controls">
+  <button id="music-toggle" onclick="toggleMusic()" title="Música">🎵</button>
+  <button id="sfx-toggle" onclick="toggleSfx()" title="Efectos de sonido">🔊</button>
+</div>
 
 <div id="setup-screen">
   <h1>☁️ CLOUD TRAINER<br>ADVENTURE</h1>
@@ -278,24 +345,127 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
   <div class="difficulty-container">
     <button class="btn-diff selected" onclick="selectDifficulty('easy',this)">🌱 BROCK<br><small>5 Vidas · 5 Preg.</small></button> <button class="btn-diff" onclick="selectDifficulty('medium',this)">⚡ MISTY<br><small>3 Vidas · 10 Preg.</small></button> <button class="btn-diff" onclick="selectDifficulty('hard',this)">🔥 GARY OAK<br><small>1 Vida · 15 Preg.</small></button>
   </div>
-<button id="start-btn" class="btn-main" disabled onclick="window.location.href='batalla.html'">▶ MODO BATALLA</button>
-  <button id="error-quiz-btn" class="btn-main hidden" style="background-color:var(--poke-red);" disabled onclick="handleScreenTransition(()=>startGame('errors'))">💀 REVANCHA — Pokémon Debilitados (0 disponibles)</button>
-  <button id="exam-start-btn" class="btn-main btn-exam" disabled onclick="handleScreenTransition(()=>startGame('exam'))">🏆 LIGA POKÉMON — 65 Preguntas / 90 min</button>
-  <button id="practice-start-btn" class="btn-main btn-practice" disabled onclick="handleScreenTransition(()=>startGame('practice'))">🌿 MODO PRÁCTICA — Sin tiempo · Captura Pokémon</button>
+<button id="start-btn" class="btn-main" disabled onclick="window.location.href='batalla.html'" style="display:none;">▶ MODO BATALLA</button>
+  <button id="error-quiz-btn" class="btn-main hidden" style="display:none;" disabled onclick="handleScreenTransition(()=>startGame('errors'))">💀 REVANCHA</button>
+  <button id="exam-start-btn" class="btn-main btn-exam" disabled onclick="handleScreenTransition(()=>startGame('exam'))" style="display:none;">🏆 LIGA POKÉMON</button>
+  <button id="practice-start-btn" class="btn-main btn-practice" disabled onclick="handleScreenTransition(()=>startGame('practice'))" style="display:none;">🌿 MODO PRÁCTICA</button>
+
+  <!-- ══ MODOS CON TARJETAS MEJORADAS ══ -->
+  <div id="game-modes" class="hidden">
+
+    <!-- MODO BATALLA -->
+    <div class="mode-card mode-card-battle">
+      <div class="mode-card-header">
+        <span class="mode-card-icon">⚔️</span>
+        <div>
+          <div class="mode-card-title">MODO BATALLA</div>
+          <div class="mode-card-sub">Elige tu equipo · Enfrenta al líder de gimnasio</div>
+        </div>
+        <span class="mode-card-badge badge-medium">MEDIO</span>
+      </div>
+      <div class="mode-card-body">
+        <div class="mode-reward-row">
+          <span class="pill pill-green">✅ GANANCIAS</span>
+          <span class="pill-list">+5 XP por acierto · Racha multiplica XP · Bonus al completar</span>
+        </div>
+        <div class="mode-reward-row">
+          <span class="pill pill-red">⚠️ RIESGOS</span>
+          <span class="pill-list">Pierdes Pokémon de tu equipo si se acaban las vidas (1–3 según rival)</span>
+        </div>
+        <div class="mode-card-diff-row">
+          <span class="diff-chip diff-easy">🪨 BROCK · 5 vidas / 5 pregs</span>
+          <span class="diff-chip diff-medium">💧 MISTY · 3 vidas / 10 pregs</span>
+          <span class="diff-chip diff-hard">🥇 GARY · 1 vida / 15 pregs</span>
+        </div>
+      </div>
+      <button id="start-btn-card" class="btn-main btn-battle-mode" onclick="window.location.href='batalla.html'">⚔️ ¡ELEGIR EQUIPO Y BATALLAR!</button>
+    </div>
+
+    <!-- CENTRO POKÉMON (Revancha) -->
+    <div class="mode-card mode-card-revancha" id="error-quiz-wrap" style="display:none;">
+      <div class="mode-card-header">
+        <span class="mode-card-icon">💊</span>
+        <div>
+          <div class="mode-card-title">CENTRO POKÉMON</div>
+          <div class="mode-card-sub">Revancha · Solo tus puntos débiles</div>
+        </div>
+        <span class="mode-card-badge badge-hard">ESTUDIO</span>
+      </div>
+      <div class="mode-card-body">
+        <div class="mode-reward-row">
+          <span class="pill pill-green">✅ GANANCIAS</span>
+          <span class="pill-list">+8 XP por acierto · Bonus final · Sin tiempo ni pérdidas</span>
+        </div>
+        <div class="mode-reward-row">
+          <span class="pill pill-gray">📘 DINÁMICA</span>
+          <span class="pill-list">Al fallar: análisis del punto débil + notas para reflexionar</span>
+        </div>
+      </div>
+      <button id="error-quiz-btn-card" class="btn-main" style="background-color:var(--poke-red);margin-bottom:0;" onclick="handleScreenTransition(()=>startGame('errors'))">💊 CENTRO POKÉMON — Revancha (0 disponibles)</button>
+    </div>
+
+    <!-- LIGA POKÉMON -->
+    <div class="mode-card mode-card-torneo">
+      <div class="mode-card-header">
+        <span class="mode-card-icon">🏆</span>
+        <div>
+          <div class="mode-card-title">LIGA POKÉMON</div>
+          <div class="mode-card-sub">65 preguntas · 90 minutos · Sin segunda oportunidad</div>
+        </div>
+        <span class="mode-card-badge badge-elite">ÉLITE</span>
+      </div>
+      <div class="mode-card-body">
+        <div class="mode-reward-row">
+          <span class="pill pill-gold">🏅 GANANCIAS (≥70%)</span>
+          <span class="pill-list">+10 niveles de XP · Pokémon exclusivo de premio · Bonus XP final</span>
+        </div>
+        <div class="mode-reward-row">
+          <span class="pill pill-red">☠️ RIESGOS</span>
+          <span class="pill-list">Sin pistas · Sin vidas · Sin pausas · Sin retorno. Si fallas, nada.</span>
+        </div>
+        <div class="mode-torneo-warning">⚡ Solo los más preparados sobreviven la Liga. ¿Estás listo, Entrenador?</div>
+      </div>
+      <button id="exam-start-btn-card" class="btn-main btn-torneo-mode" onclick="handleScreenTransition(()=>startGame('exam'))">🏆 ENTRAR A LA LIGA POKÉMON</button>
+    </div>
+
+    <!-- MODO PRÁCTICA -->
+    <div class="mode-card mode-card-practica">
+      <div class="mode-card-header">
+        <span class="mode-card-icon">🌿</span>
+        <div>
+          <div class="mode-card-title">MODO PRÁCTICA</div>
+          <div class="mode-card-sub">Sin tiempo · Captura Pokémon salvajes</div>
+        </div>
+        <span class="mode-card-badge badge-easy">SEGURO</span>
+      </div>
+      <div class="mode-card-body">
+        <div class="mode-reward-row">
+          <span class="pill pill-green">✅ GANANCIAS</span>
+          <span class="pill-list">Captura los 151 · +50 XP por captura · Sin pérdidas</span>
+        </div>
+        <div class="mode-reward-row">
+          <span class="pill pill-gray">📘 RIESGO</span>
+          <span class="pill-list">Ninguno — ideal para entrenar antes de la Liga</span>
+        </div>
+      </div>
+      <button id="practice-start-btn-card" class="btn-main btn-practice" style="margin-bottom:0;" onclick="handleScreenTransition(()=>startGame('practice'))">🌿 EXPLORAR Y CAPTURAR</button>
+    </div>
+
+  </div>
   <div style="margin:15px 0;padding:15px;background:rgba(0,0,0,.4);border:4px solid #1C1C1C;border-radius:4px;text-align:left;">
     <label style="display:block;margin-bottom:8px;font-family:'Press Start 2P',monospace;font-size:.55rem;color:var(--poke-yellow);">🎮 NOMBRE DE ENTRENADOR:</label>
     <input type="text" id="username-input" style="width:100%;background:var(--poke-cream);color:var(--poke-text);border:4px solid #1C1C1C;border-radius:4px;padding:8px;font-family:'VT323',monospace;font-size:1.3rem;margin-bottom:12px;" placeholder="Ash_Ketchum" value="Alumno_Anonimo">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-    <button class="btn-main" style="background-color:var(--purple);margin-bottom:0;padding:8px;font-size:.55rem;" onclick="exportMyNotes()">📤 Compartir Pokédex</button>
-    <button class="btn-main" style="background-color:#546E7A;margin-bottom:0;padding:8px;font-size:.55rem;" onclick="document.getElementById('import-folder-input').click()">📥 Recibir Pokédex</button>
-    <input type="file" id="import-folder-input" accept=".json" style="display:none;" onchange="importNotesFromFolder(event)">
+    <button class="btn-main" style="background-color:#1B5E20;margin-bottom:0;padding:8px;font-size:.5rem;" onclick="exportSaveData()">💾 GUARDAR PARTIDA</button>
+    <button class="btn-main" style="background-color:#4A148C;margin-bottom:0;padding:8px;font-size:.5rem;" onclick="document.getElementById('import-save-input').click()">📂 CARGAR PARTIDA</button>
+    <input type="file" id="import-save-input" accept=".json" style="display:none;" onchange="importSaveData(event)">
 </div>
   </div>
   <div class="medals-section">
     <span class="medals-title">🏅 MEDALLAS DE GIMNASIO CLOUD</span>
     <div class="medals-grid" id="medals-grid"></div>
   </div>
-  <button id="view-stats-btn" class="btn-main" style="background-color:#37474F;margin-top:10px;" onclick="handleScreenTransition(showStatsPanel)">📋 VER POKÉDEX DE BATALLAS</button>
+  <button id="view-stats-btn" class="btn-main" style="background-color:#37474F;margin-top:10px;" onclick="handleScreenTransition(showStatsPanel)">📋 VER REGISTRO DE BATALLAS</button>
   <button class="btn-main" style="background-color:#1B5E20;margin-top:0;" onclick="handleScreenTransition(showPokedexScreen)">🎒 MI POKÉDEX — Pokémon Capturados</button>
 </div>
 
@@ -314,6 +484,18 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
     <div class="exam-map-grid exam-map-inline-grid" id="exam-map-grid-inline"></div>
   </div>
 
+  <!-- ── MINIMAP (nuevo, solo Liga Pokémon) ── -->
+  <div id="exam-minimap" class="hidden">
+    <span class="minimap-title">🗺️ MAPA DE BATALLA — Liga Pokémon</span>
+    <div class="minimap-grid" id="minimap-grid"></div>
+    <div class="minimap-legend">
+      <span class="mq-legend-item"><span class="mq-legend-dot" style="background:#37474F;"></span>Sin responder</span>
+      <span class="mq-legend-item"><span class="mq-legend-dot" style="background:#2E7D32;"></span>Respondida</span>
+      <span class="mq-legend-item"><span class="mq-legend-dot" style="background:#E65100;border-color:var(--poke-yellow);"></span>Marcada / Duda</span>
+      <span class="mq-legend-item"><span class="mq-legend-dot" style="background:var(--poke-sky);border-color:var(--poke-yellow);"></span>Actual</span>
+    </div>
+  </div>
+
   <div class="hud">
     <div id="hud-mode-text">BATALLA: <span id="hud-progress">0/0</span></div>
     <div><span id="hud-lives-label">HP:</span> <span id="hud-lives">❤️</span></div>
@@ -328,7 +510,9 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
   <div id="practice-progress-bar" class="practice-progress hidden"></div>
   <div id="badge-container"></div>
   <div id="hint-area">
-    <button id="hint-btn" onclick="useHint()">🔍 PISTA (-10 XP)</button>
+    <button id="hint-btn" onclick="useHint()"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/gen5/potion.png" class="potion-icon" alt="Poción"> USAR POCIÓN (-10 XP)</button>
+    <button id="flag-btn" class="hidden" onclick="toggleFlag()">🚩 MARCAR DUDA</button>
+    <div id="escape-warning" class="hidden"></div>
     <div id="hint-box" class="hidden"></div>
   </div>
   <h3 id="question-text">Aquí va la pregunta</h3>
@@ -420,5 +604,6 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
 </div>
 
 <script src="app.js"></script>
+<script src="poke-extensions.js"></script>
 </body>
 </html>
