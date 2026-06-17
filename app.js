@@ -503,6 +503,19 @@ function catchPokemon() {
     // Verificar si ya estaba capturado (repetido)
     const wasCaught = getCaughtPokemon().find(c => c.id === p.id);
     addCaughtPokemon(p);
+    // Actualizar label inmediatamente con mensaje celebratorio
+    const pgb = document.getElementById('practice-progress-bar');
+    if (pgb) {
+        const isRepeat = !!wasCaught;
+        pgb.textContent = isRepeat
+            ? `📦 ¡${p.name.toUpperCase()} x${(wasCaught.count||1)+1} — ¡YA LO TENÍAS!`
+            : `⭐ ¡${p.name.toUpperCase()} CAPTURADO! ✅`;
+        pgb.style.color = '#FFD700';
+        pgb.style.animation = 'captureFlash 0.4s ease 3';
+    }
+    // Reset de estado
+    wildPokemon = null; captureProgress = 0; window._practiceWrongCount = 0;
+    updateCaptureUI(); // limpia la barra de progreso
     if (wasCaught) {
         const newCount = (wasCaught.count || 1) + 1;
         showToast(`📦 ¡${p.name.toUpperCase()} x${newCount}!\n+25 XP (ya lo tenías)`, 3500);
@@ -512,8 +525,12 @@ function catchPokemon() {
         awardXP(50);
     }
     checkMedal('pokemon_caught_10'); checkMedal('pokemon_caught_50');
-    wildPokemon = null; captureProgress = 0; window._practiceWrongCount = 0;
-    setTimeout(() => { document.getElementById('wild-overlay').classList.add('hidden'); spawnNextWildSoon(); }, 2500);
+    setTimeout(() => {
+        document.getElementById('wild-overlay').classList.add('hidden');
+        // Restaurar color del label al normal
+        if (pgb) { pgb.style.color = ''; pgb.style.animation = ''; }
+        spawnNextWildSoon();
+    }, 2500);
 }
 
 function getCaughtPokemon() {
@@ -854,6 +871,12 @@ function showQuestion() {
     if (isPracticeMode && wildPokemon) {
         const pgb = document.getElementById('practice-progress-bar');
         if (pgb) pgb.textContent = `🎯 CAPTURA: ${captureProgress}/${CAPTURE_REQUIRED} — ${wildPokemon.name.toUpperCase()}`;
+    } else if (isPracticeMode && !wildPokemon) {
+        // No hay Pokémon activo: no sobreescribir el mensaje de captura
+        const pgb = document.getElementById('practice-progress-bar');
+        if (pgb && !pgb.textContent.includes('CAPTURADO') && !pgb.textContent.includes('YA LO TENÍAS')) {
+            pgb.textContent = '🌿 Esperando próximo Pokémon...';
+        }
     }
 
     let curOptions = examQuestionsOrder[currentQuestionIndex] || shuffleArray([...qData.options]);

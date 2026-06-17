@@ -250,6 +250,7 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
 }
 @keyframes pokeBounce{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
 @keyframes pokeShake{ 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+@keyframes captureFlash{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.08)} }
 .pokeball-throw{ animation:pokeShake .4s ease; }
 .capture-bar-wrap{ width:100%; margin:12px 0; }
 .capture-bar-track{ width:100%; height:16px; background:#1C1C1C; border:3px solid #1C1C1C; border-radius:2px; overflow:hidden; }
@@ -667,7 +668,7 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
 </div>
 
 <!-- ── MAPA FLOTANTE LATERAL — FUERA del .container para position:fixed correcto ── -->
-<!-- <div id="exam-question-map" style="display:none;">
+<!-- div id="exam-question-map" style="display:none;">
   <div class="exam-map-title">🏆 LIGA POKÉMON<br>MAPA DE RUTA</div>
   <div class="exam-map-summary" id="exam-map-summary-side">
     <span><span class="map-count-val" id="map-answered-count">0</span>RESP.</span>
