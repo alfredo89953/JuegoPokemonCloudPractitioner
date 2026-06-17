@@ -500,9 +500,17 @@ function catchPokemon() {
     document.getElementById('wild-title').textContent = '¡Pokémon capturado!';
     document.getElementById('wild-sprite').style.animation = 'flashWhite .5s ease 3, pokeBounce 1s ease infinite';
     playSoundCapture();
+    // Verificar si ya estaba capturado (repetido)
+    const wasCaught = getCaughtPokemon().find(c => c.id === p.id);
     addCaughtPokemon(p);
-    showToast(`⭐ ¡${p.name.toUpperCase()} capturado!\n+50 XP`, 3500);
-    awardXP(50);
+    if (wasCaught) {
+        const newCount = (wasCaught.count || 1) + 1;
+        showToast(`📦 ¡${p.name.toUpperCase()} x${newCount}!\n+25 XP (ya lo tenías)`, 3500);
+        awardXP(25);
+    } else {
+        showToast(`⭐ ¡${p.name.toUpperCase()} capturado!\n+50 XP`, 3500);
+        awardXP(50);
+    }
     checkMedal('pokemon_caught_10'); checkMedal('pokemon_caught_50');
     wildPokemon = null; captureProgress = 0; window._practiceWrongCount = 0;
     setTimeout(() => { document.getElementById('wild-overlay').classList.add('hidden'); spawnNextWildSoon(); }, 2500);
@@ -518,7 +526,12 @@ function addCaughtPokemon(p) {
     const u = getCurrentUser();
     const all = JSON.parse(localStorage.getItem('poke_caught') || '{}');
     if (!all[u]) all[u] = [];
-    if (!all[u].find(c => c.id === p.id)) all[u].push({ id: p.id, name: p.name, types: p.types });
+    const existing = all[u].find(c => c.id === p.id);
+    if (existing) {
+        existing.count = (existing.count || 1) + 1; // acumula repetidos
+    } else {
+        all[u].push({ id: p.id, name: p.name, types: p.types, count: 1 });
+    }
     localStorage.setItem('poke_caught', JSON.stringify(all));
 }
 
@@ -543,8 +556,9 @@ function renderPokedex() {
         const found = caught.find(c => c.id === i);
         const card = document.createElement('div');
         if (found) {
-            card.className = 'pokemon-card'; card.title = `${found.name} (${found.types.join('/')})`;
-            card.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${i}.png" alt="${found.name}"><div class="poke-num">#${String(i).padStart(3, '0')}</div><div class="poke-name">${found.name.toUpperCase()}</div>`;
+            card.className = 'pokemon-card'; card.title = `${found.name} (${found.types.join('/')}) — Capturado x${found.count||1}`;
+            const countBadge = (found.count||1) > 1 ? `<div class="poke-count">×${found.count}</div>` : '';
+            card.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${i}.png" alt="${found.name}">${countBadge}<div class="poke-num">#${String(i).padStart(3, '0')}</div><div class="poke-name">${found.name.toUpperCase()}</div>`;
         } else {
             card.className = 'pokemon-card empty'; card.title = `#${i} — Sin capturar`;
             card.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${i}.png" alt="???" style="filter:brightness(0)"><div class="poke-num">#${String(i).padStart(3, '0')}</div><div class="poke-name">???</div>`;
