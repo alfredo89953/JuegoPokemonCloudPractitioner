@@ -46,15 +46,10 @@ p{ color:var(--poke-white); margin-bottom:15px; line-height:1.4; }
 .trainer-sprites-container {
     display:flex; justify-content:space-around; align-items:flex-end;
     margin:20px 0; background:rgba(0,0,0,.4); border:4px solid #1C1C1C;
-    border-radius:4px; padding:20px 10px 10px; min-height:160px;
+    border-radius:4px; padding:20px 10px 14px; min-height:160px;
     overflow:hidden; position:relative;
 }
-/* Fondo de hierba animado */
-.trainer-sprites-container::before {
-    content:''; position:absolute; bottom:0; left:0; right:0; height:28px;
-    background:repeating-linear-gradient(90deg,#1B5E20 0px,#1B5E20 18px,#2E7D32 18px,#2E7D32 36px);
-    opacity:.55;
-}
+/* Sin barra de hierba */
 .sprite-box {
     display:flex; flex-direction:column; align-items:center; text-align:center;
     width:30%; position:relative; z-index:1;
