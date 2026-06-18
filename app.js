@@ -552,6 +552,188 @@ function addCaughtPokemon(p) {
     localStorage.setItem('poke_caught', JSON.stringify(all));
 }
 
+// ── CADENAS DE EVOLUCIÓN ──────────────────────────────────────────
+const EVOLUTION_CHAINS = [
+    {from:1,  to:2,   name:"Ivysaur",    cost:5}, {from:2,  to:3,   name:"Venusaur",   cost:8},
+    {from:4,  to:5,   name:"Charmeleon", cost:5}, {from:5,  to:6,   name:"Charizard",  cost:8},
+    {from:7,  to:8,   name:"Wartortle",  cost:5}, {from:8,  to:9,   name:"Blastoise",  cost:8},
+    {from:16, to:17,  name:"Pidgeotto",  cost:5}, {from:17, to:18,  name:"Pidgeot",    cost:8},
+    {from:19, to:20,  name:"Raticate",   cost:6},
+    {from:23, to:24,  name:"Arbok",      cost:6},
+    {from:25, to:26,  name:"Raichu",     cost:8},
+    {from:29, to:30,  name:"Nidorina",   cost:5}, {from:30, to:31,  name:"Nidoqueen",  cost:8},
+    {from:32, to:33,  name:"Nidorino",   cost:5}, {from:33, to:34,  name:"Nidoking",   cost:8},
+    {from:35, to:36,  name:"Clefable",   cost:6},
+    {from:37, to:38,  name:"Ninetales",  cost:6},
+    {from:39, to:40,  name:"Wigglytuff", cost:6},
+    {from:41, to:42,  name:"Golbat",     cost:6},
+    {from:43, to:44,  name:"Gloom",      cost:5}, {from:44, to:45,  name:"Vileplume",  cost:8},
+    {from:46, to:47,  name:"Parasect",   cost:6},
+    {from:48, to:49,  name:"Venomoth",   cost:6},
+    {from:50, to:51,  name:"Dugtrio",    cost:6},
+    {from:52, to:53,  name:"Persian",    cost:6},
+    {from:54, to:55,  name:"Golduck",    cost:6},
+    {from:58, to:59,  name:"Arcanine",   cost:6},
+    {from:60, to:61,  name:"Poliwhirl",  cost:5}, {from:61, to:62,  name:"Poliwrath",  cost:8},
+    {from:63, to:64,  name:"Kadabra",    cost:5}, {from:64, to:65,  name:"Alakazam",   cost:8},
+    {from:66, to:67,  name:"Machoke",    cost:5}, {from:67, to:68,  name:"Machamp",    cost:8},
+    {from:69, to:70,  name:"Weepinbell", cost:5}, {from:70, to:71,  name:"Victreebel", cost:8},
+    {from:74, to:75,  name:"Graveler",   cost:5}, {from:75, to:76,  name:"Golem",      cost:8},
+    {from:79, to:80,  name:"Slowbro",    cost:6},
+    {from:92, to:93,  name:"Haunter",    cost:5}, {from:93, to:94,  name:"Gengar",     cost:8},
+    {from:102,to:103, name:"Exeggutor",  cost:6},
+    {from:133,to:134, name:"Vaporeon",   cost:6},
+    {from:133,to:135, name:"Jolteon",    cost:6},
+    {from:133,to:136, name:"Flareon",    cost:6},
+];
+
+function getEvolutionsFrom(fromId) {
+    return EVOLUTION_CHAINS.filter(e => e.from === fromId);
+}
+
+function tryEvolve(fromId, toEvoChain) {
+    const EVO_LEVEL_COST = 10 * XP_PER_LEVEL;
+    if (xp < EVO_LEVEL_COST) {
+        showToast(`❌ Necesitas ${EVO_LEVEL_COST} XP para evolucionar.\nTe faltan ${EVO_LEVEL_COST - xp} XP (10 niveles).`, 3500);
+        return;
+    }
+    const u = getCurrentUser();
+    const all = JSON.parse(localStorage.getItem('poke_caught') || '{}');
+    if (!all[u]) return;
+    const src = all[u].find(p => p.id === fromId);
+    if (!src || (src.count || 1) < toEvoChain.cost) {
+        showToast(`❌ Necesitas ${toEvoChain.cost}× ${src ? src.name : '???'} para evolucionar.`);
+        return;
+    }
+    // Descontar XP y copias
+    awardXP(-EVO_LEVEL_COST);
+    src.count = (src.count || 1) - (toEvoChain.cost - 1);
+    if (src.count <= 0) all[u].splice(all[u].indexOf(src), 1);
+    // Añadir/incrementar evolución
+    const evoDef = wildPokemonTable.find(p => p.id === toEvoChain.to);
+    const evoTypes = evoDef ? evoDef.types : ['Normal'];
+    const existing = all[u].find(p => p.id === toEvoChain.to);
+    if (existing) { existing.count = (existing.count || 1) + 1; existing.origin = 'evolved'; }
+    else { all[u].push({ id: toEvoChain.to, name: toEvoChain.name, types: evoTypes, count: 1, origin: 'evolved' }); }
+    localStorage.setItem('poke_caught', JSON.stringify(all));
+    playSoundCapture();
+    if (typeof playTone === 'function') playTone([523, 659, 784, 1047, 1319], 120);
+    showToast(`⭐ ¡${src.name.toUpperCase()} evolucionó a\n${toEvoChain.name.toUpperCase()}!\n(-${EVO_LEVEL_COST} XP)`, 4000);
+    renderPokedex();
+}
+
+function showEvolveOptions(pokemon) {
+    const evos = getEvolutionsFrom(pokemon.id);
+    if (evos.length === 0) return;
+    const count = pokemon.count || 1;
+    const existing = document.getElementById('evolve-modal');
+    if (existing) existing.remove();
+
+    const EVO_LEVEL_COST = 10 * XP_PER_LEVEL;
+    const hasXP = xp >= EVO_LEVEL_COST;
+
+    const modal = document.createElement('div');
+    modal.id = 'evolve-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeInModal .2s ease;';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--poke-navy);border:4px solid var(--poke-yellow);border-radius:4px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:6px 6px 0 #1C1C1C;';
+
+    // Sprite del pokemon con rebote
+    const spriteImg = document.createElement('img');
+    spriteImg.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`;
+    spriteImg.style.cssText = 'width:80px;height:80px;image-rendering:pixelated;margin-bottom:8px;animation:pokeBounce 1s ease-in-out infinite;';
+    box.appendChild(spriteImg);
+
+    const nameDiv = document.createElement('div');
+    nameDiv.style.cssText = "font-family:\'Press Start 2P\',monospace;font-size:.6rem;color:var(--poke-yellow);margin-bottom:4px;";
+    nameDiv.textContent = `${pokemon.name.toUpperCase()} \u00d7${count}`;
+    box.appendChild(nameDiv);
+
+    const qDiv = document.createElement('div');
+    qDiv.style.cssText = "font-family:\'VT323\',monospace;font-size:1.15rem;color:#CFD8DC;margin-bottom:12px;";
+    qDiv.textContent = '\u00bfQu\u00e9 evoluci\u00f3n deseas?';
+    box.appendChild(qDiv);
+
+    const costDiv = document.createElement('div');
+    costDiv.style.cssText = `font-family:\'VT323\',monospace;font-size:1.05rem;color:${hasXP ? '#FFD700' : '#EF9A9A'};margin-bottom:14px;background:rgba(0,0,0,.3);padding:6px;border-radius:3px;`;
+    costDiv.textContent = `${hasXP ? '\u2705' : '\u274c'} Costo: 10 niveles de XP (${EVO_LEVEL_COST} XP) \u2014 Tienes ${xp} XP`;
+    box.appendChild(costDiv);
+
+    // Botones de evolución (sin inline onclick con JSON)
+    evos.forEach(e => {
+        const canEvo = count >= e.cost && hasXP;
+        const btn = document.createElement('button');
+        btn.style.cssText = `width:100%;padding:11px;margin:6px 0;border-radius:4px;font-family:\'Press Start 2P\',monospace;font-size:.48rem;display:flex;align-items:center;gap:10px;border:3px solid ${canEvo ? 'var(--poke-yellow)' : '#546E7A'};background:${canEvo ? 'rgba(255,214,0,.12)' : 'rgba(0,0,0,.3)'};color:${canEvo ? '#fff' : '#90A4AE'};cursor:${canEvo ? 'pointer' : 'not-allowed'};transition:background .15s;`;
+        btn.disabled = !canEvo;
+        if (canEvo) {
+            btn.onmouseover = () => btn.style.background = 'rgba(255,214,0,.28)';
+            btn.onmouseout  = () => btn.style.background = 'rgba(255,214,0,.12)';
+        }
+        const toImg = document.createElement('img');
+        toImg.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${e.to}.png`;
+        toImg.style.cssText = 'width:36px;height:36px;image-rendering:pixelated;flex-shrink:0;';
+        const textSpan = document.createElement('span');
+        textSpan.style.cssText = 'text-align:left;';
+        textSpan.innerHTML = `\u2192 ${e.name.toUpperCase()}<br><span style="font-size:.38rem;color:${canEvo ? '#B0BEC5' : '#546E7A'};">necesitas ${e.cost}\u00d7, tienes ${count}\u00d7</span>`;
+        btn.appendChild(toImg);
+        btn.appendChild(textSpan);
+        btn.onclick = () => {
+            modal.remove();
+            triggerEvolveAnimation(pokemon, e);
+        };
+        box.appendChild(btn);
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.style.cssText = "background:rgba(0,0,0,.4);border:2px solid #546E7A;color:#90A4AE;padding:8px 20px;margin-top:12px;border-radius:4px;font-family:\'Press Start 2P\',monospace;font-size:.42rem;cursor:pointer;";
+    cancelBtn.textContent = '\u2716 CANCELAR';
+    cancelBtn.onclick = () => modal.remove();
+    box.appendChild(cancelBtn);
+
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+}
+
+function triggerEvolveAnimation(pokemon, toEvoChain) {
+    const overlay = document.createElement('div');
+    overlay.id = 'evo-anim-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9500;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+
+    const img = document.createElement('img');
+    img.id = 'evo-anim-img';
+    img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`;
+    img.style.cssText = 'width:128px;height:128px;image-rendering:pixelated;filter:brightness(10);animation:evoFlash .3s ease-in-out infinite;';
+
+    const txt = document.createElement('div');
+    txt.id = 'evo-anim-txt';
+    txt.style.cssText = "font-family:\'Press Start 2P\',monospace;font-size:.65rem;color:#fff;margin-top:28px;text-align:center;line-height:2;";
+    txt.innerHTML = `\u00a1${pokemon.name.toUpperCase()}<br>est\u00e1 evolucionando!`;
+
+    overlay.appendChild(img); overlay.appendChild(txt);
+    document.body.appendChild(overlay);
+
+    // Fase 2: mostrar forma evolucionada
+    setTimeout(() => {
+        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${toEvoChain.to}.png`;
+        img.style.animation = 'pokeBounce .6s ease-in-out infinite';
+        img.style.filter = '';
+        txt.innerHTML = `<span style="color:var(--poke-yellow);">\u2b50 \u00a1${pokemon.name.toUpperCase()}<br>evolucion\u00f3 a<br><b style="font-size:.8rem;">${toEvoChain.name.toUpperCase()}!</b></span>`;
+        tryEvolve(pokemon.id, toEvoChain);
+        if (typeof playTone === 'function') playTone([523,659,784,1047,1319], 130);
+        playSoundCapture();
+    }, 1600);
+
+    // Fase 3: cerrar y refrescar Pokédex
+    setTimeout(() => {
+        overlay.style.transition = 'opacity .4s';
+        overlay.style.opacity = '0';
+        setTimeout(() => { overlay.remove(); renderPokedex(); }, 400);
+    }, 3400);
+}
+
+
 function showPokedexScreen() {
     document.getElementById('setup-screen').classList.add('hidden');
     document.getElementById('pokedex-screen').classList.remove('hidden');
@@ -568,20 +750,58 @@ function renderPokedex() {
     const coll = document.getElementById('pokemon-collection');
     if (!coll) return;
     coll.innerHTML = '';
-    document.getElementById('pokedex-count-label').textContent = `${caught.length} / 151 capturados`;
+    // Guardar referencia por id para el onclick sin problemas de escapado
+    window._pokedexCaughtMap = {};
+    caught.forEach(p => { window._pokedexCaughtMap[p.id] = p; });
+
+    const uniqueIds = new Set(caught.map(c => c.id));
+    document.getElementById('pokedex-count-label').textContent = `${uniqueIds.size} / 151 capturados`;
     for (let i = 1; i <= 151; i++) {
         const found = caught.find(c => c.id === i);
         const card = document.createElement('div');
+        const evos = getEvolutionsFrom(i);
+        const canShowEvo = found && evos.length > 0;
+        const canEvo = canShowEvo && evos.some(e => (found.count || 1) >= e.cost);
         if (found) {
-            card.className = 'pokemon-card'; card.title = `${found.name} (${found.types.join('/')}) — Capturado x${found.count||1}`;
-            const countBadge = (found.count||1) > 1 ? `<div class="poke-count">×${found.count}</div>` : '';
-            card.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${i}.png" alt="${found.name}">${countBadge}<div class="poke-num">#${String(i).padStart(3, '0')}</div><div class="poke-name">${found.name.toUpperCase()}</div>`;
+            card.className = 'pokemon-card';
+            card.dataset.pokemonId = i;
+            const originBadge = found.origin === 'evolved'
+                ? `<div style="font-family:'Press Start 2P',monospace;font-size:.28rem;color:#CE93D8;margin-top:1px;">★EVO</div>`
+                : '';
+            const countBadge = (found.count || 1) > 1
+                ? `<div class="poke-count">×${found.count}</div>`
+                : '';
+            const evoBtnHtml = canShowEvo
+                ? `<button class="evo-btn${canEvo ? ' evo-ready' : ''}"
+                    data-evo-id="${i}"
+                    title="${canEvo ? '¡Puede evolucionar! Clic para ver opciones' : 'Necesitas más copias para evolucionar'}">⬆</button>`
+                : '';
+            card.title = `${found.name} ×${found.count || 1}${found.origin === 'evolved' ? ' (evolucionado)' : ''}`;
+            card.innerHTML = `
+                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/gen5/poke-ball.png" class="caught-ball" alt="cap">
+                ${evoBtnHtml}
+                ${countBadge}
+                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${i}.png" alt="${found.name}">
+                <div class="poke-num">#${String(i).padStart(3, '0')}</div>
+                <div class="poke-name">${found.name.toUpperCase()}</div>
+                ${originBadge}`;
         } else {
-            card.className = 'pokemon-card empty'; card.title = `#${i} — Sin capturar`;
-            card.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${i}.png" alt="???" style="filter:brightness(0)"><div class="poke-num">#${String(i).padStart(3, '0')}</div><div class="poke-name">???</div>`;
+            card.className = 'pokemon-card empty';
+            card.title = `#${i} — Sin capturar`;
+            card.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${i}.png" alt="???" style="filter:brightness(0)"><div class="poke-num">#${String(i).padStart(3,'0')}</div><div class="poke-name">???</div>`;
         }
         coll.appendChild(card);
     }
+    // Delegar clicks en botones evo — un solo listener, sin problemas de escapado
+    coll.onclick = (e) => {
+        const btn = e.target.closest('[data-evo-id]');
+        if (btn) {
+            e.stopPropagation();
+            const id = parseInt(btn.dataset.evoId);
+            const pokemon = window._pokedexCaughtMap[id];
+            if (pokemon) showEvolveOptions(pokemon);
+        }
+    };
 }
 
 // ==================================================================
